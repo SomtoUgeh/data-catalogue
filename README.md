@@ -72,6 +72,7 @@ cd backend && mypy app
 cd frontend && npm test
 cd frontend && npm run typecheck
 cd frontend && npm run lint
+cd frontend && npm run fmt:check
 ```
 
 Backend tests stub Jev and Llama at the HTTP boundary. Frontend tests use MSW. The running app does not. Pull requests run the same checks in GitHub Actions.
