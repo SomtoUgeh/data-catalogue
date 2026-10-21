@@ -3,12 +3,21 @@ from fastapi.responses import Response
 from workers import asgi
 
 from app.config import settings_from_env
+from app.curation.base import Curator
 from app.curation.factory import get_worker_curator
+from app.curation.outcome import CurationFailed, CurationOutcome
 from app.main import create_app
 from app.repositories.d1_dataset_repository import D1DatasetRepository
+from app.schemas import DatasetCreate
 from app.services.dataset_service import DatasetService
 
-app = create_app()
+
+class UnboundCurator(Curator):
+    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
+        return CurationFailed()
+
+
+app = create_app(curator=UnboundCurator())
 
 
 @app.middleware("http")

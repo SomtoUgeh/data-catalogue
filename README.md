@@ -22,6 +22,8 @@ npm run dev
 
 The UI is at [http://localhost:3000](http://localhost:3000). The API is at [http://127.0.0.1:8000](http://127.0.0.1:8000). Vite proxies `/datasets` to FastAPI. The browser always talks to the real API.
 
+A same-origin Cloudflare Workers prototype (FastAPI + D1 + the built SPA, local `pywrangler dev` only) is documented in [DEPLOY.md](DEPLOY.md).
+
 Copy `backend/.env.example` and set the three live values below for Jev + Llama. Without them, every create still returns 201. Tags stay empty, the summary is a placeholder, and `curation_status` is `failed`.
 
 Regenerate the typed client after a backend contract change:

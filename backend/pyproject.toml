@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "data-catalogue"
 version = "1.0.0"
@@ -9,11 +13,8 @@ dependencies = [
     "httpx==0.28.1",
 ]
 
-[dependency-groups]
-dev = [
-    "workers-py",
-    "workers-runtime-sdk",
-]
+[tool.setuptools.packages.find]
+include = ["app*"]
 
 [tool.ruff]
 line-length = 100

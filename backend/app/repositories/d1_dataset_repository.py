@@ -32,7 +32,6 @@ def _rows(result: Any) -> list[Any]:
 class D1DatasetRepository:
     def __init__(self, db: Any) -> None:
         self._db = db
-        self._seeded = False
 
     def list_all(self) -> list[Dataset]:
         self._ensure_seed()
@@ -61,13 +60,15 @@ class D1DatasetRepository:
         return str(int(_field(row, "seq") or 0) + 1)
 
     def _ensure_seed(self) -> None:
-        if self._seeded:
-            return
         row = self._first("SELECT COUNT(*) AS n FROM datasets")
-        if int(_field(row, "n") or 0) == 0:
-            for item in SEED_DATASETS:
-                self._insert(item)
-        self._seeded = True
+        if int(_field(row, "n") or 0) > 0:
+            return
+        try:
+            self._execute("DELETE FROM sqlite_sequence WHERE name = 'datasets'")
+        except Exception:
+            pass
+        for item in SEED_DATASETS:
+            self._insert(item)
 
     def _insert(self, dataset: Dataset) -> None:
         self._execute(

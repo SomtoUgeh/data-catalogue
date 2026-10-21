@@ -1,6 +1,6 @@
 {
   "name": "data-catalogue",
-  "main": "worker.py",
+  "main": "src/worker.py",
   "compatibility_date": "2026-10-21",
   "compatibility_flags": ["python_workers"],
   "assets": {

@@ -146,6 +146,25 @@ def test_tags_from_answers_omits_scores_below_threshold() -> None:
     assert tags_from_answers(answers) == []
 
 
+def test_classifier_curator_uses_workers_ai_binding() -> None:
+    class FakeAI:
+        def run(self, model, payload):
+            assert model == DEFAULT_CLASSIFIER_MODEL
+            assert payload["state"]["name"] == TRADE.name
+            return {
+                "answers": {
+                    "trading": {"noul": 0.9},
+                    "finance": {"noul": 0.8},
+                    "settlements": {"noul": 0.7},
+                    "daily": {"noul": 0.85},
+                }
+            }
+
+    curator = ClassifierCurator(Settings(), ai_binding=FakeAI())
+    tags = curator.classify(TRADE, dataset_id="4")
+    assert set(tags) >= {"trading", "finance", "settlements", "daily"}
+
+
 def test_classifier_curator_maps_mocked_http_response() -> None:
     payload = {
         "result": {

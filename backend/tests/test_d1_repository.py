@@ -73,6 +73,9 @@ class FakeD1:
             }
             self.seq = max(self.seq, dataset_id)
             return
+        if "sqlite_sequence" in text and text.startswith("DELETE"):
+            self.seq = 0
+            return
         if text.startswith("DELETE"):
             self.rows.pop(int(binds[0]), None)
 

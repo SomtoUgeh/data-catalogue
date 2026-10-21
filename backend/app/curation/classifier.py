@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from app.config import Settings
 from app.curation.base import CurationError
 from app.curation.tags import MAX_TAGS, NOUL_THRESHOLD, TAG_REGISTRY
+from app.runtime import unwrap
 from app.schemas import DatasetCreate
 
 
@@ -59,6 +60,12 @@ def tags_from_answers(
     return [tag for tag, score in scored if score >= threshold][:limit]
 
 
+def _as_json(payload: object) -> object:
+    if hasattr(payload, "to_py"):
+        return payload.to_py()
+    return payload
+
+
 def parse_jev_answers(payload: object) -> dict[str, NoulAnswer]:
     try:
         envelope = JevResponse.model_validate(payload)
@@ -79,20 +86,30 @@ def parse_jev_answers(payload: object) -> dict[str, NoulAnswer]:
 class ClassifierCurator:
     """TypeSafe Jev (or a Jev-compatible Clef model) for closed-set tags."""
 
-    def __init__(self, settings: Settings, http_client=None) -> None:
+    def __init__(self, settings: Settings, http_client=None, ai_binding=None) -> None:
         self.settings = settings
         self._http_client = http_client
+        self._ai = ai_binding
 
     def classify(self, payload: DatasetCreate, dataset_id: str = "") -> list[str]:
+        jev_input = {
+            "state": {"name": payload.name, "description": payload.description},
+            "questions": tag_questions(),
+        }
+        if self._ai is not None:
+            raw = unwrap(self._ai.run(self.settings.classifier_model, jev_input))
+            answers = parse_jev_answers(_as_json(raw))
+            tags = tags_from_answers(answers)
+            if not tags:
+                raise CurationError("classifier returned no tags above threshold")
+            return tags
+
         if not self.settings.llm_ready:
             raise CurationError("Cloudflare Workers AI is not configured")
 
         body = {
             "model": self.settings.classifier_model,
-            "input": {
-                "state": {"name": payload.name, "description": payload.description},
-                "questions": tag_questions(),
-            },
+            "input": jev_input,
         }
         headers = {
             "Authorization": f"Bearer {self.settings.llm_provider_api_key}",
