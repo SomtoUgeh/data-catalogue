@@ -18,8 +18,10 @@ def _validation_message(exc: RequestValidationError) -> str:
         msg = err.get("msg", "is invalid")
         if msg.startswith("Value error, "):
             msg = msg.removeprefix("Value error, ")
-        if field:
-            parts.append(f"{field} {msg}" if not msg.startswith(field) else msg)
+        if err.get("type") == "missing" and field:
+            parts.append(f"{field} is required")
+        elif field and not msg.startswith(field):
+            parts.append(f"{field} {msg}")
         else:
             parts.append(msg)
     return "; ".join(parts) or "Invalid request body."
