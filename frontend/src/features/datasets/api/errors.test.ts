@@ -1,71 +1,66 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod'
 
-import {
-  getErrorMessage,
-  getFieldErrors,
-  isNotFoundError,
-  isValidationError,
-  parseApiError,
-  zodIssuesToFieldErrors,
-} from './errors'
-import { zDatasetCreate } from './generated/zod.gen'
+import { ApiError, unwrapResponse } from './errors'
 
-describe('parseApiError', () => {
-  it('safeParses a validation error body', () => {
-    const error = parseApiError({
-      error: 'Validation failed',
-      fields: [{ field: 'name', message: 'name is required' }],
+function rejection(result: { data?: unknown; error?: unknown; response?: Response }) {
+  return unwrapResponse(Promise.resolve(result)).catch((error: unknown) => error)
+}
+
+const status = (code: number) => new Response(null, { status: code })
+
+describe('unwrapResponse', () => {
+  it('returns the data of a successful call', async () => {
+    await expect(
+      unwrapResponse(Promise.resolve({ data: [], response: status(200) })),
+    ).resolves.toEqual([])
+  })
+
+  it('keeps the field errors of a 400', async () => {
+    const error = await rejection({
+      error: {
+        error: 'Validation failed',
+        fields: [{ field: 'name', message: 'name is required' }],
+      },
+      response: status(400),
     })
 
-    expect(error.message).toBe('Validation failed')
-    expect(error.status).toBe(400)
-    expect(isValidationError(error)).toBe(true)
-    expect(getFieldErrors(error)).toEqual({ name: 'name is required' })
+    expect(error).toEqual(
+      new ApiError('Validation failed', 400, [{ field: 'name', message: 'name is required' }]),
+    )
   })
 
-  it('safeParses a not-found body', () => {
-    const error = parseApiError({ error: "Dataset with id '1' was not found." })
-
-    expect(isNotFoundError(error)).toBe(true)
-    expect(getErrorMessage(error)).toBe("Dataset with id '1' was not found.")
-  })
-
-  it('falls back for an unknown shape', () => {
-    const error = parseApiError({ oops: true })
-
-    expect(error.message).toBe('Something went wrong.')
-    expect(isValidationError(error)).toBe(false)
-    expect(isNotFoundError(error)).toBe(false)
-  })
-
-  it('maps a network failure without leaking the raw error', () => {
-    const error = parseApiError(new TypeError('Failed to fetch'))
-
-    expect(error.message).toBe('Could not reach the catalogue.')
-    expect(error.status).toBe(0)
-  })
-})
-
-describe('zodIssuesToFieldErrors', () => {
-  it('flattens Zod issues to field messages', () => {
-    const parsed = zDatasetCreate.safeParse({ name: '', description: '' })
-    expect(parsed.success).toBe(false)
-    if (parsed.success) return
-
-    const fields = zodIssuesToFieldErrors(parsed.error)
-    expect(fields.name).toBeTruthy()
-    expect(fields.description).toBeTruthy()
-  })
-
-  it('keeps custom issue messages', () => {
-    const schema = z.object({
-      name: z.string().min(1, 'Name is required'),
+  it('uses the server message of other error statuses', async () => {
+    const error = await rejection({
+      error: { error: "Dataset '1' not found" },
+      response: status(404),
     })
-    const parsed = schema.safeParse({ name: '' })
-    expect(parsed.success).toBe(false)
-    if (parsed.success) return
 
-    expect(zodIssuesToFieldErrors(parsed.error)).toEqual({ name: 'Name is required' })
+    expect(error).toEqual(new ApiError("Dataset '1' not found", 404))
+  })
+
+  it('falls back to the status for an unknown error body', async () => {
+    const error = await rejection({ error: 'Bad gateway', response: status(502) })
+
+    expect(error).toEqual(new ApiError('Request failed (502).', 502))
+  })
+
+  it('reports a failed request without exposing the raw error', async () => {
+    const error = await rejection({ error: new TypeError('Failed to fetch') })
+
+    expect(error).toEqual(new ApiError('Could not reach the catalogue.', 0))
+  })
+
+  it('reports a response that fails the generated schema', async () => {
+    const parsed = z.object({ id: z.string() }).safeParse({})
+    const error = await rejection({ error: parsed.error, response: status(200) })
+
+    expect(error).toEqual(new ApiError('The server returned an unexpected response.', 200))
+  })
+
+  it('rethrows an aborted request so TanStack Query can ignore it', async () => {
+    const abort = new DOMException('The operation was aborted.', 'AbortError')
+
+    expect(await rejection({ error: abort })).toBe(abort)
   })
 })

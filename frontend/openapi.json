@@ -11,21 +11,67 @@
           "datasets"
         ],
         "summary": "List Datasets",
+        "description": "Lists datasets newest first. A page shorter than `limit` is the last one.",
         "operationId": "listDatasets",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Page size.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d+$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Return datasets older than this id: the last id of the previous page.",
+              "title": "Before"
+            },
+            "description": "Return datasets older than this id: the last id of the previous page."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Dataset"
                   },
-                  "type": "array",
                   "title": "Response Listdatasets"
                 }
               }
             }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
           }
         }
       },
@@ -37,14 +83,14 @@
         "description": "Saves the dataset after running AI curation. If curation fails, the dataset is still saved.",
         "operationId": "createDataset",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DatasetCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -58,21 +104,21 @@
             }
           },
           "400": {
-            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ValidationErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Bad Request"
           },
-          "422": {
-            "description": "Validation Error",
+          "429": {
+            "description": "More than 10 writes in a minute from one IP. Deployed Worker only; see Retry-After.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -119,12 +165,12 @@
             },
             "description": "Not Found"
           },
-          "422": {
-            "description": "Validation Error",
+          "429": {
+            "description": "More than 10 writes in a minute from one IP. Deployed Worker only; see Retry-After.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
@@ -190,16 +236,19 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 200,
             "minLength": 1,
             "title": "Name"
           },
           "owner": {
             "type": "string",
+            "maxLength": 200,
             "title": "Owner",
             "default": ""
           },
           "description": {
             "type": "string",
+            "maxLength": 2000,
             "minLength": 1,
             "title": "Description"
           }
@@ -243,59 +292,6 @@
           "message"
         ],
         "title": "FieldError"
-      },
-      "HTTPValidationError": {
-        "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
-      },
-      "ValidationError": {
-        "properties": {
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "type": "array",
-            "title": "Location"
-          },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "ctx": {
-            "type": "object",
-            "title": "Context"
-          }
-        },
-        "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError"
       },
       "ValidationErrorResponse": {
         "properties": {

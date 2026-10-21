@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateDatasetData, CreateDatasetErrors, CreateDatasetResponses, DeleteDatasetData, DeleteDatasetErrors, DeleteDatasetResponses, ListDatasetsData, ListDatasetsResponses } from './types.gen';
+import type { CreateDatasetData, CreateDatasetErrors, CreateDatasetResponses, DeleteDatasetData, DeleteDatasetErrors, DeleteDatasetResponses, ListDatasetsData, ListDatasetsErrors, ListDatasetsResponses } from './types.gen';
 import { zCreateDatasetResponse, zDeleteDatasetResponse, zListDatasetsResponse } from './zod.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
@@ -21,8 +21,10 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 
 /**
  * List Datasets
+ *
+ * Lists datasets newest first. A page shorter than `limit` is the last one.
  */
-export const listDatasets = <ThrowOnError extends boolean = false>(options?: Options<ListDatasetsData, ThrowOnError>): RequestResult<ListDatasetsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListDatasetsResponses, unknown, ThrowOnError>({
+export const listDatasets = <ThrowOnError extends boolean = false>(options?: Options<ListDatasetsData, ThrowOnError>): RequestResult<ListDatasetsResponses, ListDatasetsErrors, ThrowOnError> => (options?.client ?? client).get<ListDatasetsResponses, ListDatasetsErrors, ThrowOnError>({
     responseValidator: async (data) => await zListDatasetsResponse.parseAsync(data),
     url: '/datasets',
     ...options

@@ -4,21 +4,33 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { getApiBaseUrl } from '@/lib/api-base'
 import { createTestQueryClient } from '@/test/render'
-import { datasetsQueryOptions } from '../api/queryOptions'
+import type { Dataset } from '../api/generated/types.gen'
+import { datasetsQueryOptions, PAGE_SIZE } from '../api/queryOptions'
 import { server } from '../mocks/server'
 import { CataloguePage } from './CataloguePage'
 
 async function renderCatalogue() {
   const queryClient = createTestQueryClient()
-  await queryClient.ensureQueryData(datasetsQueryOptions())
+  await queryClient.ensureInfiniteQueryData(datasetsQueryOptions())
   const view = render(
     <QueryClientProvider client={queryClient}>
       <CataloguePage />
     </QueryClientProvider>,
   )
   return { ...view, queryClient }
+}
+
+function dataset(id: number): Dataset {
+  return {
+    id: String(id),
+    name: `Feed ${id}`,
+    owner: 'Middle Office',
+    description: 'A daily feed.',
+    tags: ['daily'],
+    summary: 'A daily feed.',
+    curation_status: 'ok',
+  }
 }
 
 describe('CataloguePage', () => {
@@ -38,7 +50,7 @@ describe('CataloguePage', () => {
     await renderCatalogue()
 
     await user.type(screen.getByLabelText('Name'), 'Trade Confirmations')
-    await user.type(screen.getByLabelText('Owner'), 'Middle Office')
+    await user.type(screen.getByLabelText('Owner (optional)'), 'Middle Office')
     await user.type(
       screen.getByLabelText('Description'),
       'Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.',
@@ -65,7 +77,7 @@ describe('CataloguePage', () => {
 
   it('shows at most five tags on a catalogue row', async () => {
     server.use(
-      http.get(`${getApiBaseUrl()}/datasets`, () =>
+      http.get('/datasets', () =>
         HttpResponse.json(
           [
             {
@@ -92,7 +104,7 @@ describe('CataloguePage', () => {
 
   it('shows a failed-AI indicator on a row that saved without tags', async () => {
     server.use(
-      http.get(`${getApiBaseUrl()}/datasets`, () =>
+      http.get('/datasets', () =>
         HttpResponse.json(
           [
             {
@@ -101,7 +113,7 @@ describe('CataloguePage', () => {
               owner: 'Middle Office',
               description: 'A feed that could not be curated.',
               tags: [],
-              summary: 'Curation unavailable. Tags and summary will appear once tagging succeeds.',
+              summary: '',
               curation_status: 'failed',
             },
           ],
@@ -112,19 +124,56 @@ describe('CataloguePage', () => {
     await renderCatalogue()
 
     expect(await screen.findByRole('heading', { name: 'Broken Feed' })).toBeInTheDocument()
-    expect(screen.getByText('AI curation failed. The dataset was still saved.')).toBeInTheDocument()
+    expect(
+      screen.getByText('AI curation failed. The dataset was saved without tags or a summary.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Tags:/)).not.toBeInTheDocument()
   })
 
   it('shows a request error banner when delete fails', async () => {
     const user = userEvent.setup()
     server.use(
-      http.delete(`${getApiBaseUrl()}/datasets/:dataset_id`, () =>
-        HttpResponse.json({ error: "Dataset with id '1' was not found." }, { status: 404 }),
+      http.delete('/datasets/:dataset_id', () =>
+        HttpResponse.json({ error: "Dataset '1' not found" }, { status: 404 }),
       ),
     )
     await renderCatalogue()
     await user.click(screen.getByRole('button', { name: 'Delete Customer Transactions' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent("Dataset with id '1' was not found.")
+    expect(await screen.findByText("Dataset '1' not found")).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Customer Transactions' })).toBeInTheDocument()
+  })
+
+  it('says the tags were kept when only the summary failed', async () => {
+    server.use(
+      http.get('/datasets', () =>
+        HttpResponse.json([{ ...dataset(9), summary: '', curation_status: 'failed' }]),
+      ),
+    )
+    await renderCatalogue()
+
+    expect(
+      await screen.findByText('AI could not write a summary. The dataset and its tags were saved.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Tags: daily')).toBeInTheDocument()
+  })
+
+  it('loads the next page of older datasets on request', async () => {
+    const user = userEvent.setup()
+    const newest = Array.from({ length: PAGE_SIZE }, (_, i) => dataset(100 - i))
+    server.use(
+      http.get('/datasets', ({ request }) => {
+        const before = new URL(request.url).searchParams.get('before')
+        return HttpResponse.json(before === '51' ? [dataset(7)] : newest)
+      }),
+    )
+    await renderCatalogue()
+
+    expect(screen.getByText(`Showing the newest ${PAGE_SIZE}`)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Load more datasets' }))
+
+    expect(await screen.findByRole('heading', { name: 'Feed 7' })).toBeInTheDocument()
+    expect(screen.getByText(`${PAGE_SIZE + 1} datasets`)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Load more datasets' })).not.toBeInTheDocument()
   })
 })

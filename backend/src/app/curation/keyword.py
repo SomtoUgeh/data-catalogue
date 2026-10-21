@@ -28,7 +28,7 @@ def _tags(text: str) -> list[str]:
     if PERSONAL_IDENTIFIER.search(text) or ("name" in words and words & PEOPLE_WORDS):
         tags.append(PII_TAG.id)
     tags.extend(tag.id for tag in CADENCE_TAGS if words & tag.keywords)
-    return tags[:MAX_TAGS] or ["uncategorised"]
+    return tags[:MAX_TAGS]
 
 
 def _summary(description: str, tags: list[str]) -> str:

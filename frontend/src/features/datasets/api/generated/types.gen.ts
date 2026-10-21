@@ -87,44 +87,6 @@ export type FieldError = {
 };
 
 /**
- * HTTPValidationError
- */
-export type HttpValidationError = {
-    /**
-     * Detail
-     */
-    detail?: Array<ValidationError>;
-};
-
-/**
- * ValidationError
- */
-export type ValidationError = {
-    /**
-     * Location
-     */
-    loc: Array<string | number>;
-    /**
-     * Message
-     */
-    msg: string;
-    /**
-     * Error Type
-     */
-    type: string;
-    /**
-     * Input
-     */
-    input?: unknown;
-    /**
-     * Context
-     */
-    ctx?: {
-        [key: string]: unknown;
-    };
-};
-
-/**
  * ValidationErrorResponse
  *
  * Body of a 400. `fields` names each invalid request field so the UI can show errors inline.
@@ -143,9 +105,31 @@ export type ValidationErrorResponse = {
 export type ListDatasetsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Limit
+         *
+         * Page size.
+         */
+        limit?: number;
+        /**
+         * Before
+         *
+         * Return datasets older than this id: the last id of the previous page.
+         */
+        before?: string | null;
+    };
     url: '/datasets';
 };
+
+export type ListDatasetsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ValidationErrorResponse;
+};
+
+export type ListDatasetsError = ListDatasetsErrors[keyof ListDatasetsErrors];
 
 export type ListDatasetsResponses = {
     /**
@@ -171,9 +155,9 @@ export type CreateDatasetErrors = {
      */
     400: ValidationErrorResponse;
     /**
-     * Validation Error
+     * More than 10 writes in a minute from one IP. Deployed Worker only; see Retry-After.
      */
-    422: HttpValidationError;
+    429: ErrorResponse;
 };
 
 export type CreateDatasetError = CreateDatasetErrors[keyof CreateDatasetErrors];
@@ -205,9 +189,9 @@ export type DeleteDatasetErrors = {
      */
     404: ErrorResponse;
     /**
-     * Validation Error
+     * More than 10 writes in a minute from one IP. Deployed Worker only; see Retry-After.
      */
-    422: HttpValidationError;
+    429: ErrorResponse;
 };
 
 export type DeleteDatasetError = DeleteDatasetErrors[keyof DeleteDatasetErrors];

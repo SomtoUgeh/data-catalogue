@@ -16,9 +16,8 @@ export function useCreateDatasetMutation() {
           throwOnError: false,
         }),
       ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: datasetsQueryOptions().queryKey })
-    },
+    // Returning the promise keeps the mutation pending until the list has refetched.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: datasetsQueryOptions().queryKey }),
   })
 }
 
@@ -33,8 +32,7 @@ export function useDeleteDatasetMutation() {
           throwOnError: false,
         }),
       ),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: datasetsQueryOptions().queryKey })
-    },
+    // Returning the promise keeps the mutation pending until the list has refetched.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: datasetsQueryOptions().queryKey }),
   })
 }

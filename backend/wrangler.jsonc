@@ -3,7 +3,11 @@
   "main": "src/worker.py",
   "compatibility_date": "2026-09-10",
   "compatibility_flags": ["python_workers"],
-  "observability": { "enabled": true },
+  // Workers Logs (our JSON events, plus one log per request) and automatic traces for every request.
+  "observability": {
+    "enabled": true,
+    "traces": { "enabled": true, "head_sampling_rate": 1 }
+  },
 
   // The built SPA is served by the platform. Only the API and its OpenAPI docs reach the Python Worker.
   "assets": {
@@ -21,8 +25,19 @@
     }
   ],
   "ai": { "binding": "AI" },
+
+  // Each create runs two AI calls, so writes are limited per client IP (see src/worker.py).
+  "ratelimits": [
+    {
+      "name": "WRITE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "vars": {
     "CLASSIFIER_MODEL": "@cf/cloudflare/clef-flash",
-    "SUMMARY_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    "SUMMARY_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    // AI Gateway logs every model call. "default" is created on first use.
+    "AI_GATEWAY_ID": "default"
   }
 }

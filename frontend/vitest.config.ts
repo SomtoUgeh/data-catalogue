@@ -15,8 +15,5 @@ export default defineConfig({
     environmentOptions: {
       url: 'http://localhost:3000/',
     },
-    env: {
-      VITE_API_BASE_URL: '',
-    },
   },
 })

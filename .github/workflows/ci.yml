@@ -17,6 +17,7 @@ jobs:
       - run: uv sync --group dev
       - run: uv run ruff check src tests scripts
       - run: uv run ruff format --check src tests scripts
+      - run: uv run pyright -p ../pyrightconfig.json
       - run: uv run pytest
 
   frontend:

@@ -2,9 +2,6 @@
   "name": "frontend",
   "private": true,
   "type": "module",
-  "imports": {
-    "#/*": "./src/*"
-  },
   "scripts": {
     "dev": "vite --port 3000",
     "generate-routes": "tsr generate",
@@ -20,7 +17,6 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
-    "@hey-api/client-fetch": "^0.13.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-form": "^1.33.5",
     "@tanstack/react-query": "^5.104.5",
@@ -53,11 +49,5 @@
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "vitest": "^5.0.5"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ]
   }
 }
