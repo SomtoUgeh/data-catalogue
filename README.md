@@ -5,6 +5,11 @@ FastAPI backend, React (Vite) frontend, one Cloudflare Worker in production.
 
 **Live:** https://data-catalogue.somto.workers.dev · **API docs:** https://data-catalogue.somto.workers.dev/docs
 
+The live site keeps its data in D1, so every visitor shares the same catalogue and changes stay after a
+reload. A delete there, such as `DELETE /datasets/1`, removes that seed for everyone who comes later. To
+run the full checklist, including deletes, run the app locally: its in-memory store starts with the three
+seeds again on each restart.
+
 ## Run locally
 
 Requires Python 3.12+ with [uv](https://docs.astral.sh/uv/), and Node 22+.
