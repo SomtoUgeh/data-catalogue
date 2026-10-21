@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     llm_provider_api_key: str = ""
     llm_model: str = DEFAULT_LLM_MODEL
     classifier_model: str = DEFAULT_CLASSIFIER_MODEL
-    curator: str = ""
     request_timeout_seconds: float = 8.0
 
     @property

@@ -10,7 +10,6 @@ from app.config import DEFAULT_CLASSIFIER_MODEL, DEFAULT_LLM_MODEL, Settings, ge
 from app.curation.classifier import TAG_CRITERIA, ClassifierCurator, tags_from_answers
 from app.curation.factory import get_curator
 from app.curation.hybrid import HybridCurator
-from app.curation.keyword import KEYWORD_RULES, KeywordCurator
 from app.curation.llm import LlmCurator
 from app.curation.tags import normalize_tags
 from app.main import create_app
@@ -42,39 +41,7 @@ TRADE_PAYLOAD = {
 }
 
 
-def test_keyword_curator_tags_trade_confirmations() -> None:
-    result = KeywordCurator().curate(TRADE)
-    assert set(result.tags) >= {"trading", "finance", "settlements", "daily"}
-    assert result.summary.startswith("A daily export of confirmed trades")
-    assert len(result.summary.rstrip(".").split()) <= 25
-
-
-def test_keyword_curator_detects_pii_and_hr() -> None:
-    payload = DatasetCreate(
-        name="Employee Directory",
-        owner="HR Team",
-        description="List of current employees with name, department, role, and office location. Updated weekly.",
-    )
-    result = KeywordCurator().curate(payload)
-    assert "HR" in result.tags
-    assert "PII" in result.tags
-    assert "weekly" in result.tags
-    assert result.summary.startswith("A ")
-
-
-def test_keyword_curator_does_not_treat_product_name_as_pii() -> None:
-    payload = DatasetCreate(
-        name="Product Inventory",
-        owner="Operations Team",
-        description="Snapshot of warehouse stock levels by SKU, including product name and quantity on hand.",
-    )
-    result = KeywordCurator().curate(payload)
-    assert "inventory" in result.tags
-    assert "PII" not in result.tags
-    assert result.summary.startswith("A ")
-
-
-def test_get_curator_defaults_to_keyword_without_gateway(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_curator_is_always_hybrid(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (
         "CF_ACCOUNT_ID",
         "CF_AI_GATEWAY_ID",
@@ -84,47 +51,11 @@ def test_get_curator_defaults_to_keyword_without_gateway(monkeypatch: pytest.Mon
     ):
         monkeypatch.delenv(key, raising=False)
     get_settings.cache_clear()
-    assert isinstance(get_curator(), KeywordCurator)
-
-
-def test_get_curator_uses_hybrid_when_gateway_configured(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CF_ACCOUNT_ID", "test-account-id")
-    monkeypatch.setenv("CF_AI_GATEWAY_ID", "test-gateway")
-    monkeypatch.setenv("LLM_PROVIDER_API_KEY", "token")
-    monkeypatch.delenv("CURATOR", raising=False)
-    get_settings.cache_clear()
     curator = get_curator()
     assert isinstance(curator, HybridCurator)
     assert isinstance(curator.classifier, ClassifierCurator)
     assert curator.classifier.settings.llm_model == DEFAULT_LLM_MODEL
     assert curator.classifier.settings.classifier_model == DEFAULT_CLASSIFIER_MODEL
-
-
-def test_get_curator_llm_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CF_ACCOUNT_ID", "acc")
-    monkeypatch.setenv("CF_AI_GATEWAY_ID", "gw")
-    monkeypatch.setenv("LLM_PROVIDER_API_KEY", "token")
-    monkeypatch.setenv("CURATOR", "llm")
-    get_settings.cache_clear()
-    assert isinstance(get_curator(), LlmCurator)
-
-
-def test_get_curator_classifier_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CF_ACCOUNT_ID", "acc")
-    monkeypatch.setenv("CF_AI_GATEWAY_ID", "gw")
-    monkeypatch.setenv("LLM_PROVIDER_API_KEY", "token")
-    monkeypatch.setenv("CURATOR", "classifier")
-    get_settings.cache_clear()
-    assert isinstance(get_curator(), ClassifierCurator)
-
-
-def test_get_curator_mock_override_wins(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("CF_ACCOUNT_ID", "acc")
-    monkeypatch.setenv("CF_AI_GATEWAY_ID", "gw")
-    monkeypatch.setenv("LLM_PROVIDER_API_KEY", "token")
-    monkeypatch.setenv("CURATOR", "mock")
-    get_settings.cache_clear()
-    assert isinstance(get_curator(), KeywordCurator)
 
 
 def test_normalize_tags_lowercases_dedupes_and_keeps_acronyms() -> None:
@@ -195,8 +126,6 @@ def test_safe_error_redacts_bearer_tokens() -> None:
 
 def test_tag_set_does_not_include_trades() -> None:
     assert "trades" not in {tag for tag, _meaning in TAG_CRITERIA}
-    assert "trades" not in {tag for tag, _keywords in KEYWORD_RULES}
-    assert all("trades" not in keywords for _tag, keywords in KEYWORD_RULES)
 
 
 def test_tags_from_answers_keeps_high_noul_scores() -> None:
@@ -245,9 +174,8 @@ def test_classifier_curator_maps_mocked_http_response() -> None:
             return httpx.Response(200, json=payload)
 
     curator = ClassifierCurator(_settings(), http_client=FakeClient())
-    result = curator.curate(TRADE, dataset_id="4")
-    assert set(result.tags) >= {"trading", "finance", "settlements", "daily"}
-    assert result.summary.startswith("A ")
+    tags = curator.classify(TRADE, dataset_id="4")
+    assert set(tags) >= {"trading", "finance", "settlements", "daily"}
 
 
 def test_hybrid_uses_classifier_tags_and_llm_summary() -> None:
@@ -267,14 +195,18 @@ def test_hybrid_uses_classifier_tags_and_llm_summary() -> None:
     assert result.summary.startswith("A daily export")
 
 
-def test_hybrid_falls_back_to_keyword_when_classifier_fails() -> None:
+def test_hybrid_raises_when_classifier_fails() -> None:
     class BoomClassifier(ClassifierCurator):
         def classify(self, payload, dataset_id=""):
             raise RuntimeError("gateway down")
 
-    curator = HybridCurator(BoomClassifier(_settings()), summarizer=None)
-    result = curator.curate(TRADE)
-    assert set(result.tags) >= {"trading", "finance", "settlements", "daily"}
+    summarizer = LlmCurator(
+        _settings(),
+        model=TestModel(custom_output_text=json.dumps({"summary": VALID_OUTPUT["summary"]})),
+    )
+    curator = HybridCurator(BoomClassifier(_settings()), summarizer)
+    with pytest.raises(RuntimeError, match="gateway down"):
+        curator.curate(TRADE)
 
 
 def test_llm_summarise_accepts_valid_testmodel_output() -> None:

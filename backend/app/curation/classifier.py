@@ -3,9 +3,8 @@ import json
 import httpx
 
 from app.config import Settings
-from app.curation.base import CurationError, Curator
-from app.curation.keyword import summarise_dataset
-from app.schemas import CurationResult, DatasetCreate
+from app.curation.base import CurationError
+from app.schemas import DatasetCreate
 
 DEFAULT_CLASSIFIER_MODEL = "typesafe/jev"
 NOUL_THRESHOLD = 0.55
@@ -86,16 +85,12 @@ def _extract_answers(payload: object) -> dict:
     raise CurationError("classifier response missing answers")
 
 
-class ClassifierCurator(Curator):
+class ClassifierCurator:
     """TypeSafe Jev (or a Jev-compatible Clef model) for closed-set tags."""
 
     def __init__(self, settings: Settings, http_client=None) -> None:
         self.settings = settings
         self._http_client = http_client
-
-    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
-        tags = self.classify(payload, dataset_id=dataset_id)
-        return CurationResult(tags=tags, summary=summarise_dataset(payload, tags))
 
     def classify(self, payload: DatasetCreate, dataset_id: str = "") -> list[str]:
         if not self.settings.llm_ready:
