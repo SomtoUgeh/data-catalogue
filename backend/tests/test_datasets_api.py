@@ -75,8 +75,22 @@ def test_post_with_missing_or_blank_fields_returns_400(
     assert len(client.get("/datasets").json()) == 3
 
 
+def test_post_with_a_too_long_field_returns_400_with_the_limit(client: TestClient) -> None:
+    response = client.post("/datasets", json={**TRADE_CONFIRMATIONS, "name": "x" * 201})
+
+    assert response.status_code == 400
+    assert response.json()["fields"] == [{"field": "name", "message": "name must be at most 200 characters"}]
+
+
+def test_post_with_malformed_json_returns_400_on_the_body(client: TestClient) -> None:
+    response = client.post("/datasets", content="{", headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 400
+    assert [error["field"] for error in response.json()["fields"]] == ["body"]
+
+
 class BrokenStore(InMemoryDatasetStore):
-    async def list(self) -> list[Dataset]:
+    async def list_all(self) -> list[Dataset]:
         raise RuntimeError("database is unavailable")
 
 

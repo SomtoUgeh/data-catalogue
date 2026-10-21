@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { getApiBaseUrl } from '@/lib/api-base'
 import { createTestQueryClient } from '@/test/render'
 import { datasetsQueryOptions } from '../api/queryOptions'
 import { server } from '../mocks/server'
@@ -38,7 +37,7 @@ describe('CataloguePage', () => {
     await renderCatalogue()
 
     await user.type(screen.getByLabelText('Name'), 'Trade Confirmations')
-    await user.type(screen.getByLabelText('Owner'), 'Middle Office')
+    await user.type(screen.getByLabelText('Owner (optional)'), 'Middle Office')
     await user.type(
       screen.getByLabelText('Description'),
       'Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.',
@@ -65,7 +64,7 @@ describe('CataloguePage', () => {
 
   it('shows at most five tags on a catalogue row', async () => {
     server.use(
-      http.get(`${getApiBaseUrl()}/datasets`, () =>
+      http.get('/datasets', () =>
         HttpResponse.json(
           [
             {
@@ -92,7 +91,7 @@ describe('CataloguePage', () => {
 
   it('shows a failed-AI indicator on a row that saved without tags', async () => {
     server.use(
-      http.get(`${getApiBaseUrl()}/datasets`, () =>
+      http.get('/datasets', () =>
         HttpResponse.json(
           [
             {
@@ -101,7 +100,7 @@ describe('CataloguePage', () => {
               owner: 'Middle Office',
               description: 'A feed that could not be curated.',
               tags: [],
-              summary: 'Curation unavailable. Tags and summary will appear once tagging succeeds.',
+              summary: '',
               curation_status: 'failed',
             },
           ],
@@ -118,13 +117,14 @@ describe('CataloguePage', () => {
   it('shows a request error banner when delete fails', async () => {
     const user = userEvent.setup()
     server.use(
-      http.delete(`${getApiBaseUrl()}/datasets/:dataset_id`, () =>
-        HttpResponse.json({ error: "Dataset with id '1' was not found." }, { status: 404 }),
+      http.delete('/datasets/:dataset_id', () =>
+        HttpResponse.json({ error: "Dataset '1' not found" }, { status: 404 }),
       ),
     )
     await renderCatalogue()
     await user.click(screen.getByRole('button', { name: 'Delete Customer Transactions' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent("Dataset with id '1' was not found.")
+    expect(await screen.findByText("Dataset '1' not found")).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Customer Transactions' })).toBeInTheDocument()
   })
 })

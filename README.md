@@ -27,7 +27,7 @@ curator that needs no API key. The Vite dev server forwards `/datasets` to the A
 
 ```bash
 cd backend && uv run pytest && uv run pyright -p ../pyrightconfig.json
-cd frontend && npm test && npm run typecheck && npm run lint
+cd frontend && npm test && npm run typecheck && npm run lint && npm run fmt:check
 ```
 
 Backend tests run the API with the keyword curator and a fake Workers AI binding. Frontend tests use MSW
@@ -38,8 +38,11 @@ handlers that follow the same OpenAPI contract.
 | Method | Path | Success | Errors |
 | --- | --- | --- | --- |
 | `GET` | `/datasets` | `200` list of datasets | |
-| `POST` | `/datasets` | `201` saved dataset with `tags` and `summary` | `400` if `name` or `description` is missing or blank |
+| `POST` | `/datasets` | `201` saved dataset with `tags` and `summary` | `400` if `name` or `description` is missing or blank, or a field is too long |
 | `DELETE` | `/datasets/{id}` | `200` deleted dataset | `404` if the id does not exist |
+
+`name` and `description` are required; `owner` is optional. Limits: `name` and `owner` 200 characters,
+`description` 2000. On Cloudflare, `POST` and `DELETE` return `429` after 10 requests per minute from one IP.
 
 Every error body has `error`. A `400` also lists the invalid fields so the form can show them inline:
 
@@ -74,11 +77,11 @@ backend/
       prompts.py            summary instructions for the chat model
       workers_ai.py         Clef picks tags, Llama writes the summary
       keyword.py            rule-based mock for local runs and tests
-  src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI to the app
+  src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI, limits writes per IP
   tests/                    API, curator, and error-shape tests; payloads.py holds shared bodies
   migrations/               D1 schema and seed rows
   scripts/export_openapi.py prints the OpenAPI document for the frontend generator
-  wrangler.jsonc            Worker, D1, Workers AI, and static asset config
+  wrangler.jsonc            Worker, D1, Workers AI, rate limit, and static asset config
 frontend/src/
   features/datasets/
     api/generated/          typed client, zod schemas, and query keys from openapi.json
@@ -86,7 +89,7 @@ frontend/src/
     components/             catalogue page, add form, list, row, tags, banners
     mocks/                  MSW handlers for tests
   components/               form field, status banner, shadcn ui primitives
-  lib/                      class-name helper and API base URL
+  lib/                      class-name helper
   routes/                   TanStack Router file routes
   test/                     test setup and render helpers
 ```
@@ -123,18 +126,29 @@ uv run pywrangler dev
   and Workers AI curator from the Worker environment. Routes, service, and schemas are shared.
 - **Layers.** Routes only handle HTTP. `DatasetService` holds the logic. The store protocol is the only
   thing that touches storage, so swapping memory for D1 is one class.
-- **Validation.** Pydantic rejects missing or blank `name` and `description`. FastAPI returns `422` by
-  default, so one handler changes this to `400` with a field list.
-- **Curation failure.** The service catches any curation error (network, timeout, invalid model output) and
-  logs it. The dataset still saves with empty `tags` and `summary` and `curation_status: "failed"`. The UI
+- **Validation.** Pydantic rejects missing or blank `name` and `description`, and fields over their length
+  limit. The limits keep the AI prompts, and so cost and latency, bounded. FastAPI returns `422` by default,
+  so one handler changes this to `400` with a field list.
+- **Abuse limit.** The API has no sign-in, so the Worker limits `POST` and `DELETE` to 10 per minute per
+  client IP with Cloudflare's rate limiting binding (`WRITE_LIMITER` in `wrangler.jsonc`). It is plain ASGI
+  middleware in `worker.py`: Starlette's `@app.middleware` runs the app in a separate task, which raises
+  proxy errors in the Python Workers runtime.
+- **Curation failure.** The service catches any curation error (network, a model call over 20 seconds,
+  invalid model output) and logs it. The dataset still saves with empty `tags` and `summary` and `curation_status: "failed"`. The UI
   shows this on the form and on the row.
 - **AI curation.** Two Workers AI calls. Clef (`@cf/cloudflare/clef-flash`), a decision model, answers one
   yes/no question per tag in `tags.py` with a probability; tags at or above 0.55 are kept, highest first,
   at most five. So tags never leave the vocabulary. Llama 3.3 70B then writes the summary from the name,
   description, and chosen tags, in JSON mode, validated with Pydantic. The prompt in `prompts.py` asks for
-  one sentence of at most 25 words and gives two worked examples from the sample data.
+  one sentence of at most 25 words and gives two worked examples from the sample data. A longer reply is
+  rejected.
 - **Keyword mock.** A table maps keywords to domain tags. PII is added for personal identifiers, or for a
   `name` field in a dataset about people, so "product name" does not count. Cadence comes from words like
   "daily". The summary is built from the field list in the description's first sentence.
 - **Frontend state.** TanStack Query owns the list. Add and delete mutations invalidate it, so the page
-  updates without a reload. Components never call `fetch` directly; they use the generated client.
+  updates without a reload. Components never call `fetch` directly; they use the generated client, and
+  `unwrapResponse` turns every failure into an `ApiError` with the server's message.
+- **Form.** TanStack Form validates with the generated Zod schema plus form messages. A field shows its
+  error after the user leaves it or submits, not while they first type. On a failed submit, focus moves to
+  the first invalid field, including fields the server rejects. Request errors and curation warnings go into
+  live regions that are always in the DOM, so screen readers announce them.

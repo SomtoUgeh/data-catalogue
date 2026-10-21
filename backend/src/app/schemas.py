@@ -2,8 +2,14 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
 
-RequiredText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-OptionalText = Annotated[str, StringConstraints(strip_whitespace=True)]
+# Length caps keep the AI prompts, and so cost and latency, bounded.
+MAX_NAME_LENGTH = 200
+MAX_OWNER_LENGTH = 200
+MAX_DESCRIPTION_LENGTH = 2000
+
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_NAME_LENGTH)]
+Owner = Annotated[str, StringConstraints(strip_whitespace=True, max_length=MAX_OWNER_LENGTH)]
+Description = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_DESCRIPTION_LENGTH)]
 
 CurationStatus = Literal["ok", "failed"]
 
@@ -11,9 +17,9 @@ CurationStatus = Literal["ok", "failed"]
 class DatasetCreate(BaseModel):
     """Request body for POST /datasets."""
 
-    name: RequiredText
-    owner: OptionalText = ""
-    description: RequiredText
+    name: Name
+    owner: Owner = ""
+    description: Description
 
 
 class DatasetFields(BaseModel):

@@ -19,7 +19,7 @@ class DatasetService:
         self._curator = curator
 
     async def list_datasets(self) -> list[Dataset]:
-        return await self._store.list()
+        return await self._store.list_all()
 
     async def create_dataset(self, data: DatasetCreate) -> Dataset:
         curation = await self._curate(data)

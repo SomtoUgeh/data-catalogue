@@ -23,9 +23,9 @@ export const zDataset = z.object({
  * Request body for POST /datasets.
  */
 export const zDatasetCreate = z.object({
-    name: z.string().min(1),
-    owner: z.string().optional().default(''),
-    description: z.string().min(1)
+    name: z.string().min(1).max(200),
+    owner: z.string().max(200).optional().default(''),
+    description: z.string().min(1).max(2000)
 });
 
 /**

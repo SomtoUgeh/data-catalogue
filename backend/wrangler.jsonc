@@ -21,6 +21,15 @@
     }
   ],
   "ai": { "binding": "AI" },
+
+  // Each create runs two AI calls, so writes are limited per client IP (see src/worker.py).
+  "ratelimits": [
+    {
+      "name": "WRITE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "vars": {
     "CLASSIFIER_MODEL": "@cf/cloudflare/clef-flash",
     "SUMMARY_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"

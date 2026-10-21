@@ -190,16 +190,19 @@
         "properties": {
           "name": {
             "type": "string",
+            "maxLength": 200,
             "minLength": 1,
             "title": "Name"
           },
           "owner": {
             "type": "string",
+            "maxLength": 200,
             "title": "Owner",
             "default": ""
           },
           "description": {
             "type": "string",
+            "maxLength": 2000,
             "minLength": 1,
             "title": "Description"
           }

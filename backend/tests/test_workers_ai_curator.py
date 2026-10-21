@@ -1,5 +1,7 @@
+import asyncio
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.curation.workers_ai import WorkersAiCurator, tags_from_answers
@@ -32,8 +34,14 @@ class FakeAi:
         return self.replies[model]
 
 
-def client_with(ai: FakeAi) -> TestClient:
-    curator = WorkersAiCurator(ai, classifier_model="clef", summary_model="llama")
+class SlowAi(FakeAi):
+    async def run(self, model: str, request: dict[str, Any]) -> Any:
+        await asyncio.sleep(1)
+        return await super().run(model, request)
+
+
+def client_with(ai: FakeAi, timeout_seconds: float = 5) -> TestClient:
+    curator = WorkersAiCurator(ai, classifier_model="clef", summary_model="llama", timeout_seconds=timeout_seconds)
     return TestClient(create_app(DatasetService(InMemoryDatasetStore(SEED_DATASETS), curator)))
 
 
@@ -59,8 +67,16 @@ def test_tags_are_ordered_by_probability_and_capped() -> None:
     assert tags_from_answers(answers) == ["HR", "finance", "daily", "PII", "trading"]
 
 
-def test_malformed_summary_still_saves_the_dataset_as_failed() -> None:
-    ai = FakeAi({"clef": {"answers": CLEF_ANSWERS}, "llama": {"response": {"text": "not a summary"}}})
+LONG_SUMMARY = " ".join(["word"] * 26)
+
+
+@pytest.mark.parametrize(
+    "llama_reply",
+    [{"response": {"text": "not a summary"}}, {"response": {"summary": LONG_SUMMARY}}],
+    ids=["wrong shape", "too long"],
+)
+def test_invalid_summary_still_saves_the_dataset_as_failed(llama_reply: dict[str, Any]) -> None:
+    ai = FakeAi({"clef": {"answers": CLEF_ANSWERS}, "llama": llama_reply})
     client = client_with(ai)
 
     response = client.post("/datasets", json=TRADE_CONFIRMATIONS)
@@ -71,6 +87,15 @@ def test_malformed_summary_still_saves_the_dataset_as_failed() -> None:
     assert created["summary"] == ""
     assert created["curation_status"] == "failed"
     assert created in client.get("/datasets").json()
+
+
+def test_slow_model_times_out_and_saves_the_dataset_as_failed() -> None:
+    ai = SlowAi({"clef": {"answers": CLEF_ANSWERS}, "llama": {"response": {"summary": SUMMARY}}})
+
+    response = client_with(ai, timeout_seconds=0.05).post("/datasets", json=TRADE_CONFIRMATIONS)
+
+    assert response.status_code == 201
+    assert response.json()["curation_status"] == "failed"
 
 
 def test_no_matching_tags_still_keeps_the_summary() -> None:

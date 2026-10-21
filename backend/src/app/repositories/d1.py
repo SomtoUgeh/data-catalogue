@@ -16,7 +16,7 @@ class D1DatasetStore:
     def __init__(self, db: Any) -> None:
         self._db = db
 
-    async def list(self) -> list[Dataset]:
+    async def list_all(self) -> list[Dataset]:
         result = await self._db.prepare(f"SELECT {COLUMNS} FROM datasets ORDER BY id").all()
         return [_to_dataset(row) for row in result["results"]]
 

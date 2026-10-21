@@ -1,5 +1,8 @@
 """Instructions sent to the summary model. Tags are chosen separately by Clef, so the model only writes the sentence."""
 
+# The summary model's reply is rejected above this length. Keep in step with the rule below.
+MAX_SUMMARY_WORDS = 25
+
 SUMMARY_INSTRUCTIONS = """\
 You write the one-sentence summary for an entry in a company data catalogue.
 Reply with a JSON object with one key, "summary".

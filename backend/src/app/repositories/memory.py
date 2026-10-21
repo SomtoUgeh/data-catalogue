@@ -8,7 +8,7 @@ class InMemoryDatasetStore:
         self._datasets = {dataset.id: dataset for dataset in seed}
         self._last_id = max((int(dataset.id) for dataset in seed), default=0)
 
-    async def list(self) -> list[Dataset]:
+    async def list_all(self) -> list[Dataset]:
         return list(self._datasets.values())
 
     async def add(self, fields: DatasetFields) -> Dataset:

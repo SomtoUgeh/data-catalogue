@@ -16,9 +16,11 @@ export function CataloguePage() {
   return (
     <PageShell>
       <CatalogueHeader />
-      {deleteDataset.isError ? (
-        <StatusBanner>{getErrorMessage(deleteDataset.error)}</StatusBanner>
-      ) : null}
+      <div role="alert" className="empty:hidden">
+        {deleteDataset.isError ? (
+          <StatusBanner>{getErrorMessage(deleteDataset.error)}</StatusBanner>
+        ) : null}
+      </div>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)]">
         <div className="lg:sticky lg:top-6">
           <AddDatasetForm />

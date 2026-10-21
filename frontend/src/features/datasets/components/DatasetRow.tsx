@@ -44,7 +44,9 @@ export function DatasetRow({ dataset, isDeleting, onDelete }: DatasetRowProps) {
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <DatasetTags tags={dataset.tags} />
-          <p className="text-sm text-muted-foreground">{dataset.summary}</p>
+          {dataset.summary ? (
+            <p className="text-sm text-muted-foreground">{dataset.summary}</p>
+          ) : null}
           {banner ? <StatusBanner tone="warning">{banner}</StatusBanner> : null}
         </CardContent>
       </Card>

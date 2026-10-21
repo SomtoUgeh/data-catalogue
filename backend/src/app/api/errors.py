@@ -38,8 +38,14 @@ async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
 
 
 def _field_error(error: ErrorDetails) -> FieldError:
-    # The last location element is the field name, or a character offset for a JSON syntax error.
-    field = str(error["loc"][-1])
-    if error["type"] in ("missing", "string_too_short"):
-        return FieldError(field=field, message=f"{field} is required")
-    return FieldError(field=field, message=error["msg"])
+    # loc is ("body", "<field>") for a field error, and ("body", <offset>) for malformed JSON.
+    field = error["loc"][-1] if isinstance(error["loc"][-1], str) else "body"
+    match error["type"]:
+        case "missing" | "string_too_short":
+            message = f"{field} is required"
+        case "string_too_long":
+            limit = (error.get("ctx") or {}).get("max_length")
+            message = f"{field} must be at most {limit} characters"
+        case _:
+            message = error["msg"]
+    return FieldError(field=field, message=message)
