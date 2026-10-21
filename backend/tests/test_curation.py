@@ -13,7 +13,7 @@ from app.curation.tags import normalize_tags
 from app.main import create_app
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import CurationResult, DatasetCreate
-from app.services.dataset_service import PLACEHOLDER_SUMMARY, PLACEHOLDER_TAGS
+from app.services.dataset_service import PLACEHOLDER_SUMMARY, PLACEHOLDER_TAGS, _safe_error
 from fastapi.testclient import TestClient
 
 models.ALLOW_MODEL_REQUESTS = False
@@ -164,6 +164,16 @@ def test_llm_curator_retries_invalid_then_valid_function_model() -> None:
     )
     result = curator.curate(TRADE, dataset_id="4")
     assert result.tags == VALID_OUTPUT["tags"]
+
+
+def test_safe_error_redacts_bearer_tokens() -> None:
+    class FakeError(Exception):
+        pass
+
+    message = _safe_error(FakeError("401 Authorization: Bearer super-secret-token"))
+    assert "super-secret-token" not in message
+    assert "[redacted]" in message
+    assert "FakeError" in message
 
 
 def test_llm_failure_falls_back_on_create() -> None:

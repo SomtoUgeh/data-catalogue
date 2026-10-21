@@ -1,3 +1,6 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +12,8 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.routers.datasets import router as datasets_router
 from app.schemas import ErrorResponse, FieldError, ValidationErrorResponse
 from app.services.dataset_service import DatasetNotFoundError, DatasetService
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def _field_message(err: dict) -> str:
@@ -38,6 +43,14 @@ def create_app(
     repository: DatasetRepository | None = None,
     curator: Curator | None = None,
 ) -> FastAPI:
+    repo = repository or DatasetRepository()
+    resolved_curator = curator or get_curator()
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        logger.info("curator=%s", type(resolved_curator).__name__)
+        yield
+
     app = FastAPI(
         title="Data Catalogue",
         version="1.0.0",
@@ -47,6 +60,7 @@ def create_app(
             "`{ \"error\": \"Validation failed\", \"fields\": [...] }`, "
             "not FastAPI's default 422."
         ),
+        lifespan=lifespan,
     )
     app.add_middleware(
         CORSMiddleware,
@@ -56,9 +70,8 @@ def create_app(
         allow_headers=["*"],
     )
 
-    repo = repository or DatasetRepository()
     app.state.repository = repo
-    app.state.service = DatasetService(repo, curator or get_curator())
+    app.state.service = DatasetService(repo, resolved_curator)
     app.include_router(datasets_router)
 
     @app.exception_handler(RequestValidationError)
