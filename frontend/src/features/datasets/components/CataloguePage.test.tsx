@@ -25,7 +25,9 @@ describe('CataloguePage', () => {
   it('renders the seeded dataset list', async () => {
     await renderCatalogue()
 
-    expect(await screen.findByRole('heading', { name: 'Customer Transactions' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Customer Transactions' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Product Inventory' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Employee Directory' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete Customer Transactions' })).toBeInTheDocument()
@@ -54,7 +56,9 @@ describe('CataloguePage', () => {
     await user.click(screen.getByRole('button', { name: 'Delete Customer Transactions' }))
 
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: 'Customer Transactions' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('heading', { name: 'Customer Transactions' }),
+      ).not.toBeInTheDocument()
     })
     expect(screen.getByRole('heading', { name: 'Product Inventory' })).toBeInTheDocument()
   })

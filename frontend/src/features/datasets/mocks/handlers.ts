@@ -3,11 +3,7 @@ import { http, HttpResponse } from 'msw'
 import { getApiBaseUrl } from '@/lib/api-base'
 import { zodIssuesToFieldErrors } from '../api/errors'
 import { zDatasetCreate } from '../api/generated/zod.gen'
-import {
-  createStoredDataset,
-  deleteStoredDataset,
-  listStoredDatasets,
-} from './store'
+import { createStoredDataset, deleteStoredDataset, listStoredDatasets } from './store'
 
 function apiUrl(path: string): string {
   const base = getApiBaseUrl()

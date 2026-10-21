@@ -3,7 +3,14 @@ import { useForm } from '@tanstack/react-form'
 import { TextAreaField, TextField } from '@/components/form-field'
 import { StatusBanner } from '@/components/status-banner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import {
   firstErrorMessage,
@@ -60,8 +67,7 @@ export function AddDatasetForm() {
       ? getErrorMessage(createDataset.error)
       : null
 
-  const curationWarning =
-    createDataset.isSuccess ? curationBanner(createDataset.data) : null
+  const curationWarning = createDataset.isSuccess ? curationBanner(createDataset.data) : null
 
   return (
     <form

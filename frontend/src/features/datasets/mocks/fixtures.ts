@@ -8,7 +8,8 @@ export const SEEDED_DATASETS: Dataset[] = [
     description:
       'Contains daily transaction records including transaction ID, customer ID, amount, currency, and timestamp.',
     tags: ['finance', 'transactions', 'PII', 'daily'],
-    summary: 'A daily feed of customer transaction records covering amounts, currencies, and timestamps.',
+    summary:
+      'A daily feed of customer transaction records covering amounts, currencies, and timestamps.',
     curation_status: 'ok',
   },
   {
