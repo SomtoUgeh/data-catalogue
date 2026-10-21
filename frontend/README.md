@@ -1,18 +1,9 @@
-# frontend
+# Frontend
 
-A minimal TanStack Start app with one route and plain CSS.
+TanStack Start app for the data catalogue. Setup, env vars, and architecture live in the [root README](../README.md).
 
 ```bash
 npm install
 npm run dev
+npm test
 ```
-
-Edit `src/routes/index.tsx` to get started. Add route files under
-`src/routes`; TanStack Router updates `src/routeTree.gen.ts` for you.
-
-Build the production app with:
-
-```bash
-npm run build
-```
-
