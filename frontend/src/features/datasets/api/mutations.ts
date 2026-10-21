@@ -1,5 +1,3 @@
-// Create and delete. Each calls the generated client, and on success invalidates the list query
-// (queryOptions.ts) so the page refetches without a reload.
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 import { createDataset, deleteDataset } from './generated/sdk.gen'
@@ -18,7 +16,6 @@ export function useCreateDatasetMutation() {
           throwOnError: false,
         }),
       ),
-    // Returning the promise keeps the mutation pending until the list has refetched.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: datasetsQueryOptions().queryKey }),
   })
 }
@@ -34,7 +31,6 @@ export function useDeleteDatasetMutation() {
           throwOnError: false,
         }),
       ),
-    // Returning the promise keeps the mutation pending until the list has refetched.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: datasetsQueryOptions().queryKey }),
   })
 }

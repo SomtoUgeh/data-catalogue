@@ -1,6 +1,5 @@
 import type { Dataset } from './api/generated/types.gen'
 
-/** The warning for a dataset whose AI curation failed. Tags chosen before the failure are kept. */
 export function curationBanner(dataset: Pick<Dataset, 'curation_status' | 'tags'>): string | null {
   if (dataset.curation_status !== 'failed') return null
   return dataset.tags.length > 0

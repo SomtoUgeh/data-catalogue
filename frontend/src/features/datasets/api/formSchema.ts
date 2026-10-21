@@ -2,8 +2,6 @@ import * as z from 'zod'
 
 import { zDatasetCreate } from './generated/zod.gen'
 
-// The generated schema has the API's rules. This adds trimming and messages for the form.
-// The limits match backend/src/app/schemas.py.
 export const datasetCreateFormSchema = zDatasetCreate.extend({
   name: z
     .string()

@@ -1,5 +1,3 @@
-// The only page. The loader fetches the first page of datasets before render; CatalogueSkeleton shows
-// while it loads and CatalogueError if it fails.
 import { createFileRoute } from '@tanstack/react-router'
 
 import { CatalogueError } from '@/features/datasets/components/CatalogueError'

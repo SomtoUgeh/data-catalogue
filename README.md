@@ -76,45 +76,6 @@ The frontend client is generated from the OpenAPI document. After a backend cont
 cd frontend && npm run gen:api
 ```
 
-## Structure
-
-```
-backend/
-  src/app/                  the FastAPI application; runtime-neutral, no Cloudflare imports
-    main.py                 create_app and the local wiring (in-memory store, keyword curator)
-    logs.py                 one-line JSON log events
-    schemas.py              request, response, and error models
-    api/                    HTTP layer
-      datasets.py           routes for /datasets, with OpenAPI operation ids
-      dependencies.py       get_service, the dependency the Worker overrides
-      errors.py             400, 404, 405, and 500 handlers; every error is {"error": ...}
-    services/datasets.py    business logic: list a page, create with curation, delete
-    repositories/           DatasetStore protocol, in-memory store, D1 store, seed data
-    curation/
-      base.py               Curator protocol, CurationResult, IncompleteCurationError
-      tags.py               the tag vocabulary: id, meaning for Clef, keywords for the mock
-      prompts.py            instructions for the chat model: the summary, and tags when Clef finds none
-      workers_ai.py         Clef picks tags, Llama writes the summary; deadline, retry, AI Gateway, log event
-      keyword.py            rule-based mock for local runs and tests
-  src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI, limits writes, logs to the console
-  tests/                    API, curator, and error-shape tests; payloads.py holds shared bodies
-  migrations/               D1 schema and seed rows
-  scripts/export_openapi.py prints the OpenAPI document for the frontend generator
-  wrangler.jsonc            Worker, D1, Workers AI, AI Gateway, rate limit, observability, and asset config
-frontend/src/
-  features/datasets/
-    api/generated/          typed client, zod schemas, and query keys from openapi.json
-    api/                    query options, mutations, error parsing, form schema
-    components/             catalogue page, add form, paged list, row, tags, banners
-    mocks/                  MSW handlers and store for tests, with the same paging as the API
-  components/               form field, status banner, shadcn ui primitives
-  lib/                      class-name helper
-  routes/                   TanStack Router file routes
-  test/                     test setup and render helpers
-```
-
-`src/` is the folder pywrangler bundles into the Worker, so tests, scripts, and migrations never ship.
-
 ## How it fits together
 
 **Adding a dataset**, from the click to the saved row:

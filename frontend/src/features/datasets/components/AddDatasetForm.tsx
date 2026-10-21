@@ -17,7 +17,6 @@ import { datasetCreateFormSchema } from '../api/formSchema'
 import { useCreateDatasetMutation } from '../api/mutations'
 import { curationBanner } from '../curationBanner'
 
-/** Form fields in the order they appear, so focus can move to the first invalid one. */
 const FIELDS = ['name', 'owner', 'description'] as const
 type Field = (typeof FIELDS)[number]
 
@@ -45,29 +44,32 @@ export function AddDatasetForm() {
       focusField(FIELDS.find((field) => formApi.getFieldMeta(field)?.isValid === false))
     },
     onSubmit: async ({ value }) => {
-      // The validators passed, so this parse succeeds. It returns the trimmed values to send.
       const parsed = datasetCreateFormSchema.safeParse(value)
       if (!parsed.success) return
+
       try {
         await createDataset.mutateAsync(parsed.data)
+
         form.reset()
       } catch (error) {
-        // Any other error is shown from the mutation state below.
         if (!isValidationError(error)) return
+
         const flagged = error.fields.map(({ field }) => field).filter(isField)
+
         for (const { field, message } of error.fields) {
           if (!isField(field)) continue
+
           form.setFieldMeta(field, (meta) => ({
             ...meta,
             errorMap: { ...meta.errorMap, onSubmit: message },
           }))
         }
+
         focusField(FIELDS.find((field) => flagged.includes(field)))
       }
     },
   })
 
-  // Errors appear once a field is left or the form is submitted, not while the user first types.
   const submitted = useSelector(form.store, (state) => state.submissionAttempts > 0)
   const visibleError = (meta: { isBlurred: boolean; errors: unknown[] }) =>
     submitted || meta.isBlurred ? firstErrorMessage(meta.errors) : undefined
@@ -76,6 +78,7 @@ export function AddDatasetForm() {
     createDataset.isError && !isValidationError(createDataset.error)
       ? getErrorMessage(createDataset.error)
       : null
+
   const curationWarning = createDataset.isSuccess ? curationBanner(createDataset.data) : null
 
   return (
