@@ -1,0 +1,26 @@
+{
+  "name": "data-catalogue",
+  "main": "worker.py",
+  "compatibility_date": "2026-10-21",
+  "compatibility_flags": ["python_workers"],
+  "assets": {
+    "directory": "../frontend/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "ai": {
+    "binding": "AI"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "data-catalogue",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "LLM_MODEL": "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "CLASSIFIER_MODEL": "typesafe/jev"
+  }
+}
