@@ -33,7 +33,7 @@ PII_PATTERNS = (
 
 
 class KeywordCurator(Curator):
-    """Rule-table mock used when no LLM key is configured."""
+    """Rule-table mock used offline, and as the hybrid curator's last fallback."""
 
     def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
         haystack = f"{payload.name} {payload.description}".lower()
@@ -54,10 +54,10 @@ class KeywordCurator(Curator):
                 if len(tags) == 3:
                     break
 
-        return CurationResult(tags=tags[:6], summary=_summarise(payload, tags))
+        return CurationResult(tags=tags[:6], summary=summarise_dataset(payload, tags))
 
 
-def _summarise(payload: DatasetCreate, tags: list[str]) -> str:
+def summarise_dataset(payload: DatasetCreate, tags: list[str]) -> str:
     first_clause = payload.description.strip().split(".")[0].strip()
     if not first_clause:
         first_clause = payload.name

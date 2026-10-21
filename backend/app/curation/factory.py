@@ -1,27 +1,25 @@
 from app.config import Settings, get_settings
-from app.curation.base import CurationError, Curator
+from app.curation.base import Curator
+from app.curation.classifier import ClassifierCurator
+from app.curation.hybrid import HybridCurator
 from app.curation.keyword import KeywordCurator
 from app.curation.llm import LlmCurator
-from app.schemas import CurationResult, DatasetCreate
-
-
-class FailingCurator(Curator):
-    """Used with CURATOR=fail to demonstrate the UI fallback notice."""
-
-    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
-        raise CurationError("forced curator failure")
 
 
 def get_curator(settings: Settings | None = None) -> Curator:
-    """Keyword mock is the default. Gateway id + provider key opts into the LLM."""
+    """Keyword mock is the default. A live key opts into Jev tags + LLM summary."""
     resolved = settings or get_settings()
     mode = resolved.curator.strip().lower()
-    if mode == "fail":
-        return FailingCurator()
     if mode == "mock":
         return KeywordCurator()
-    if mode == "llm" or resolved.llm_ready:
-        if resolved.llm_ready:
-            return LlmCurator(resolved)
-        return KeywordCurator()
+    if mode == "llm":
+        return LlmCurator(resolved) if resolved.llm_ready else KeywordCurator()
+    if mode == "classifier":
+        return ClassifierCurator(resolved) if resolved.llm_ready else KeywordCurator()
+    if resolved.llm_ready:
+        return HybridCurator(
+            ClassifierCurator(resolved),
+            LlmCurator(resolved),
+            KeywordCurator(),
+        )
     return KeywordCurator()

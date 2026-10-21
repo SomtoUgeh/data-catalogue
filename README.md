@@ -43,11 +43,12 @@ Names only — never commit values for tokens.
 | `CF_AI_GATEWAY_TOKEN` | Optional. Sent as `cf-aig-authorization` if the gateway itself requires auth |
 | `LLM_PROVIDER_API_KEY` | Cloudflare API token with Workers AI permission (`Authorization: Bearer`) |
 | `LLM_MODEL` | Defaults to `workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
-| `CURATOR` | `mock` (force keyword), `llm` (use gateway if configured), `fail` (demo fallback) |
+| `CLASSIFIER_MODEL` | Defaults to `typesafe/jev`. Swap to `@cf/cloudflare/clef-flash` for the CF-hosted Jev-compatible model |
+| `CURATOR` | `mock` (force keyword), `llm` (Llama only), `classifier` (Jev tags + keyword summary). Unset + a live key uses Jev for tags and Llama for the summary |
 | `VITE_API_BASE_URL` | Optional. Leave unset so the browser calls same-origin `/datasets` and Vite proxies to FastAPI. Set only to hit FastAPI directly. |
 | `VITE_API_MOCKING` | `true` starts the MSW worker for frontend-only demos |
 
-A live LLM run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. The validation pass uses the mock.
+A live run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. Without those, the keyword mock is used.
 
 ## Tests
 
@@ -102,7 +103,7 @@ Data flow:
 
 **In-memory store.** Fine for the brief. The repository is a class so a database is a swap, not a rewrite. Data resets when the process restarts.
 
-**Mock vs LLM.** The keyword curator is the default. It is a rule table (domain, cadence, PII), not a single hardcoded string. Trade Confirmations lands on tags close to `trading, finance, settlements, daily`. The LLM path is opt-in when gateway config and `LLM_PROVIDER_API_KEY` are set.
+**Jev for tags, Llama for the sentence.** Tags are a closed set (domain, subject, PII, cadence). That is a decision-model job: TypeSafe Jev on Workers AI answers one yes/no (`noul`) question per tag and returns calibrated probabilities. The 70B Llama write is only the one-sentence summary. `CURATOR=llm` keeps the old all-in-one Llama path; `CURATOR=classifier` is Jev tags plus the keyword summary. Offline, or if Jev errors, the keyword rule table still fills in.
 
 **PydanticAI, not hand-rolled JSON.** The LLM curator is an `Agent` with `output_type=PromptedOutput(CurationResult)` and `retries={'output': 2}`. Field validators normalise tags (lowercase, acronyms, dedupe, punctuation, cap 6) and require a one-sentence summary under ~25 words starting with `A `. Validation failures go back to the model. Tests use `TestModel` / `FunctionModel` with no network.
 
@@ -112,7 +113,7 @@ Data flow:
 
 **400, not 422.** FastAPI's default validation status is 422. The brief asks for 400 with a descriptive message, so the app factory remaps `RequestValidationError` to `{ "error": "Validation failed", "fields": [{ "field", "message" }] }`. The top-level `error` string stays so a 400 is still obvious; `fields` is how the form maps messages without regex.
 
-**Curation fallback.** If the agent raises (`UnexpectedModelBehavior`, timeout, HTTP error, or anything else), the dataset still saves with placeholder tags/summary and `curation_status: "failed"`. The form and the row show that to the user. `CURATOR=fail` forces this path for a demo.
+**Curation fallback.** The hybrid curator falls back to the keyword table if Jev or the summary LLM errors. If a curator still raises (`UnexpectedModelBehavior`, timeout, HTTP error), the dataset saves with placeholder tags/summary and `curation_status: "failed"`. The form and the row show that to the user.
 
 **@hey-api/openapi-ts, not orval.** The review asked for one well-known generator. Hey API's `@tanstack/react-query` plugin emits `listDatasetsOptions` / mutation helpers that match the Query wiring we already want. The `zod` plugin emits `zDatasetCreate` / `zValidationErrorResponse` from the same spec; the SDK `validator` option parses successful responses against those schemas. Pydantic `min_length=1` + `str_strip_whitespace` on `DatasetCreate` is what OpenAPI publishes as `minLength: 1`, so the generated Zod rules mirror FastAPI. Orval's MSW plugin would have generated handlers too; we wrote those by hand so they can stay aligned with FastAPI's 400 body, seeded rows, and keyword-like tags. The generated folder is committed; run `npm run gen:api` after a schema change.
 
@@ -127,5 +128,4 @@ Data flow:
 - Persist to Postgres and add `updated_at`
 - Edit a dataset and re-curate
 - Auth / team ownership
-- Evals on the curator (the mock is good enough to ship a review build; the LLM path needs golden examples)
-- Drop `CURATOR=fail` once there is a real staging key
+- Evals on the curator (the mock is good enough to ship a review build; Jev tags need a small labelled set)

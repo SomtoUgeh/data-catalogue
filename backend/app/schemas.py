@@ -77,6 +77,19 @@ class CurationResult(BaseModel):
         return text if text.endswith(".") else f"{text}."
 
 
+class SummaryResult(BaseModel):
+    """LLM-only summary once a classifier has already chosen tags."""
+
+    model_config = ConfigDict(title="SummaryResult")
+
+    summary: str
+
+    @field_validator("summary")
+    @classmethod
+    def clean_summary(cls, value: str) -> str:
+        return CurationResult.clean_summary(value)
+
+
 class Dataset(BaseModel):
     """A registered catalogue entry, including curator tags and summary."""
 

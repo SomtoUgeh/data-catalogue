@@ -1,6 +1,6 @@
 import json
 
-import httpx
+import httpx2
 from pydantic_ai import Agent, PromptedOutput
 from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -8,7 +8,7 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.config import Settings
 from app.curation.base import CurationError, Curator
-from app.schemas import CurationResult, DatasetCreate
+from app.schemas import CurationResult, DatasetCreate, SummaryResult
 
 CURATION_INSTRUCTIONS = """You curate an internal data catalogue.
 
@@ -56,11 +56,33 @@ class LlmCurator(Curator):
         result = self._agent(dataset_id).run_sync(prompt)
         return result.output
 
+    def summarise(self, payload: DatasetCreate, tags: list[str], dataset_id: str = "") -> str:
+        if self._model is None and not self.settings.llm_ready:
+            raise CurationError("Cloudflare AI Gateway is not configured")
+
+        prompt = (
+            f"name: {payload.name}\n"
+            f"description: {payload.description}\n"
+            f"tags: {', '.join(tags)}\n"
+            "Write only the one-sentence summary. Do not change the tags."
+        )
+        result = self._summary_agent(dataset_id).run_sync(prompt)
+        return result.output.summary
+
     def _agent(self, dataset_id: str) -> Agent[None, CurationResult]:
         model = self._model or self._gateway_model(dataset_id)
         return Agent(
             model,
             output_type=PromptedOutput(CurationResult),
+            instructions=CURATION_INSTRUCTIONS,
+            retries={"output": 2},
+        )
+
+    def _summary_agent(self, dataset_id: str) -> Agent[None, SummaryResult]:
+        model = self._model or self._gateway_model(dataset_id)
+        return Agent(
+            model,
+            output_type=PromptedOutput(SummaryResult),
             instructions=CURATION_INSTRUCTIONS,
             retries={"output": 2},
         )
@@ -74,7 +96,7 @@ class LlmCurator(Curator):
                 f"Bearer {self.settings.cf_ai_gateway_token.strip()}"
             )
 
-        http_client = self._http_client or httpx.AsyncClient(
+        http_client = self._http_client or httpx2.AsyncClient(
             headers=headers,
             timeout=self.settings.request_timeout_seconds,
         )
