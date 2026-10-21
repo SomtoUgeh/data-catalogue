@@ -36,6 +36,39 @@ class Settings(BaseSettings):
     def classifier_run_url(self) -> str:
         return f"https://api.cloudflare.com/client/v4/accounts/{self.cf_account_id.strip()}/ai/run"
 
+    @property
+    def workers_ai_ready(self) -> bool:
+        return bool(self.cf_account_id.strip() and self.llm_provider_api_key.strip())
+
+    @property
+    def workers_ai_chat_url(self) -> str:
+        return (
+            f"https://api.cloudflare.com/client/v4/accounts/"
+            f"{self.cf_account_id.strip()}/ai/v1/chat/completions"
+        )
+
+    def workers_ai_model(self) -> str:
+        model = self.llm_model.strip()
+        return model.removeprefix("workers-ai/")
+
+
+def settings_from_env(env: object) -> Settings:
+    def read(name: str, default: str = "") -> str:
+        value = getattr(env, name, None)
+        if value is None:
+            return default
+        text = str(value).strip()
+        return text if text else default
+
+    return Settings(
+        cf_account_id=read("CF_ACCOUNT_ID"),
+        cf_ai_gateway_id=read("CF_AI_GATEWAY_ID"),
+        cf_ai_gateway_token=read("CF_AI_GATEWAY_TOKEN"),
+        llm_provider_api_key=read("LLM_PROVIDER_API_KEY"),
+        llm_model=read("LLM_MODEL", DEFAULT_LLM_MODEL),
+        classifier_model=read("CLASSIFIER_MODEL", DEFAULT_CLASSIFIER_MODEL),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

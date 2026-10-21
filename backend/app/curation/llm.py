@@ -8,28 +8,8 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.config import Settings
 from app.curation.base import CurationError
+from app.curation.summary import SUMMARY_INSTRUCTIONS, summary_user_prompt
 from app.schemas import DatasetCreate, SummaryResult
-
-SUMMARY_INSTRUCTIONS = """You write one catalogue summary sentence.
-
-Return a JSON object that matches the provided schema.
-
-Rules:
-- one sentence, under 25 words, starts with "A "
-- derive it from the name, description, and tags
-- do not invent tags or change the tags you were given
-
-Examples:
-name: Customer Transactions
-description: Contains daily transaction records including transaction ID, customer ID, amount, currency, and timestamp.
-tags: finance, transactions, PII, daily
-{"summary": "A daily feed of customer transaction records covering amounts, currencies, and timestamps."}
-
-name: Product Inventory
-description: Snapshot of warehouse stock levels by SKU, including product name, quantity on hand, and reorder threshold.
-tags: inventory, operations, warehouse
-{"summary": "A warehouse snapshot tracking stock levels and reorder thresholds per product SKU."}
-"""
 
 
 class LlmCurator:
@@ -47,13 +27,7 @@ class LlmCurator:
         if self._model is None and not self.settings.llm_ready:
             raise CurationError("Cloudflare AI Gateway is not configured")
 
-        prompt = (
-            f"name: {payload.name}\n"
-            f"description: {payload.description}\n"
-            f"tags: {', '.join(tags)}\n"
-            "Write only the one-sentence summary. Do not change the tags."
-        )
-        result = self._summary_agent(dataset_id).run_sync(prompt)
+        result = self._summary_agent(dataset_id).run_sync(summary_user_prompt(payload, tags))
         return result.output.summary
 
     def _summary_agent(self, dataset_id: str) -> Agent[None, SummaryResult]:

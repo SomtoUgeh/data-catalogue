@@ -1,6 +1,5 @@
-from app.curation.base import Curator
+from app.curation.base import Curator, Summarizer
 from app.curation.classifier import ClassifierCurator
-from app.curation.llm import LlmCurator
 from app.curation.outcome import CurationOutcome, compose_curation
 from app.schemas import DatasetCreate
 
@@ -8,7 +7,7 @@ from app.schemas import DatasetCreate
 class HybridCurator(Curator):
     """Jev picks tags. Llama writes the summary. Each side can fail on its own."""
 
-    def __init__(self, classifier: ClassifierCurator, summarizer: LlmCurator) -> None:
+    def __init__(self, classifier: ClassifierCurator, summarizer: Summarizer) -> None:
         self.classifier = classifier
         self.summarizer = summarizer
 
