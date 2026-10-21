@@ -23,7 +23,13 @@ describe('AddDatasetForm', () => {
     const user = userEvent.setup()
     server.use(
       http.post(`${getApiBaseUrl()}/datasets`, () =>
-        HttpResponse.json({ error: 'name is required and cannot be blank' }, { status: 400 }),
+        HttpResponse.json(
+          {
+            error: 'Validation failed',
+            fields: [{ field: 'name', message: 'name is required and cannot be blank' }],
+          },
+          { status: 400 },
+        ),
       ),
     )
     renderWithQuery(<AddDatasetForm />)

@@ -5,11 +5,20 @@ import { StatusBanner } from '@/components/status-banner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
-import { ApiError } from '../api/errors'
+import {
+  firstErrorMessage,
+  getErrorMessage,
+  getFieldErrors,
+  isValidationError,
+  parseApiError,
+} from '../api/errors'
+import { datasetCreateFormSchema } from '../api/formSchema'
 import { useCreateDatasetMutation } from '../api/mutations'
 
-function requiredMessage(field: string, value: string): string | undefined {
-  return value.trim() ? undefined : `${field} is required`
+const FORM_FIELDS = ['name', 'owner', 'description'] as const
+
+function isFormField(field: string): field is (typeof FORM_FIELDS)[number] {
+  return (FORM_FIELDS as readonly string[]).includes(field)
 }
 
 export function AddDatasetForm() {
@@ -21,39 +30,34 @@ export function AddDatasetForm() {
       owner: '',
       description: '',
     },
+    validators: {
+      onChange: datasetCreateFormSchema,
+      onSubmit: datasetCreateFormSchema,
+    },
     onSubmit: async ({ value }) => {
+      const parsed = datasetCreateFormSchema.safeParse(value)
+      if (!parsed.success) return
       try {
-        await createDataset.mutateAsync({
-          name: value.name.trim(),
-          owner: value.owner.trim(),
-          description: value.description.trim(),
-        })
+        await createDataset.mutateAsync(parsed.data)
         form.reset()
       } catch (error) {
-        if (error instanceof ApiError && error.status === 400) {
-          if (/name/i.test(error.message)) {
-            form.setFieldMeta('name', (prev) => ({
-              ...prev,
-              errorMap: { ...prev.errorMap, onSubmit: error.message },
-            }))
-          }
-          if (/description/i.test(error.message)) {
-            form.setFieldMeta('description', (prev) => ({
-              ...prev,
-              errorMap: { ...prev.errorMap, onSubmit: error.message },
-            }))
-          }
+        const apiError = parseApiError(error)
+        if (!isValidationError(apiError)) return
+        for (const [field, message] of Object.entries(getFieldErrors(apiError))) {
+          if (!isFormField(field)) continue
+          form.setFieldMeta(field, (prev) => ({
+            ...prev,
+            errorMap: { ...prev.errorMap, onSubmit: message },
+          }))
         }
       }
     },
   })
 
   const requestError =
-    createDataset.isError && createDataset.error instanceof ApiError && createDataset.error.status !== 400
-      ? createDataset.error.message
-      : createDataset.isError && !(createDataset.error instanceof ApiError)
-        ? 'Could not save the dataset.'
-        : null
+    createDataset.isError && !isValidationError(parseApiError(createDataset.error))
+      ? getErrorMessage(createDataset.error)
+      : null
 
   const curationWarning =
     createDataset.isSuccess && createDataset.data.curation_status === 'failed'
@@ -83,17 +87,12 @@ export function AddDatasetForm() {
             {curationWarning ? <StatusBanner tone="warning">{curationWarning}</StatusBanner> : null}
           </div>
 
-          <form.Field
-            name="name"
-            validators={{
-              onSubmit: ({ value }) => requiredMessage('Name', value),
-            }}
-          >
+          <form.Field name="name">
             {(field) => (
               <TextField
                 id="name"
                 label="Name"
-                error={field.state.meta.errors[0] ? String(field.state.meta.errors[0]) : undefined}
+                error={firstErrorMessage(field.state.meta.errors)}
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={field.handleChange}
@@ -113,17 +112,12 @@ export function AddDatasetForm() {
             )}
           </form.Field>
 
-          <form.Field
-            name="description"
-            validators={{
-              onSubmit: ({ value }) => requiredMessage('Description', value),
-            }}
-          >
+          <form.Field name="description">
             {(field) => (
               <TextAreaField
                 id="description"
                 label="Description"
-                error={field.state.meta.errors[0] ? String(field.state.meta.errors[0]) : undefined}
+                error={firstErrorMessage(field.state.meta.errors)}
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={field.handleChange}

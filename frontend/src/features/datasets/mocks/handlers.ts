@@ -1,7 +1,8 @@
 import { http, HttpResponse } from 'msw'
 
 import { getApiBaseUrl } from '@/lib/api-base'
-import type { DatasetCreate } from '../api/generated/types.gen'
+import { zodIssuesToFieldErrors } from '../api/errors'
+import { zDatasetCreate } from '../api/generated/zod.gen'
 import {
   createStoredDataset,
   deleteStoredDataset,
@@ -13,10 +14,24 @@ function apiUrl(path: string): string {
   return base ? `${base}${path}` : path
 }
 
-function missingOrBlank(value: unknown): 'missing' | 'blank' | null {
-  if (value === undefined) return 'missing'
-  if (typeof value !== 'string' || !value.trim()) return 'blank'
-  return null
+function trimCreateBody(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw
+  const body = raw as Record<string, unknown>
+  const next: Record<string, unknown> = { ...body }
+  for (const key of ['name', 'owner', 'description']) {
+    if (typeof next[key] === 'string') next[key] = next[key].trim()
+  }
+  return next
+}
+
+function validationFailed(fields: Record<string, string>) {
+  return HttpResponse.json(
+    {
+      error: 'Validation failed',
+      fields: Object.entries(fields).map(([field, message]) => ({ field, message })),
+    },
+    { status: 400 },
+  )
 }
 
 export const datasetsHandlers = [
@@ -25,28 +40,21 @@ export const datasetsHandlers = [
   }),
 
   http.post(apiUrl('/datasets'), async ({ request }) => {
-    const body = (await request.json().catch(() => ({}))) as Partial<DatasetCreate>
-    const nameIssue = missingOrBlank(body.name)
-    if (nameIssue === 'missing') {
-      return HttpResponse.json({ error: 'name is required' }, { status: 400 })
-    }
-    if (nameIssue === 'blank') {
-      return HttpResponse.json({ error: 'name is required and cannot be blank' }, { status: 400 })
-    }
-    const descriptionIssue = missingOrBlank(body.description)
-    if (descriptionIssue === 'missing') {
-      return HttpResponse.json({ error: 'description is required' }, { status: 400 })
-    }
-    if (descriptionIssue === 'blank') {
-      return HttpResponse.json({ error: 'description is required and cannot be blank' }, { status: 400 })
+    const parsed = zDatasetCreate.safeParse(trimCreateBody(await request.json().catch(() => ({}))))
+    if (!parsed.success) {
+      const fields: Record<string, string> = {}
+      for (const field of Object.keys(zodIssuesToFieldErrors(parsed.error))) {
+        fields[field] = `${field} is required`
+      }
+      return validationFailed(fields)
     }
 
     const failed = request.headers.get('x-curator') === 'fail'
     const created = createStoredDataset(
       {
-        name: String(body.name).trim(),
-        owner: typeof body.owner === 'string' ? body.owner.trim() : '',
-        description: String(body.description).trim(),
+        name: parsed.data.name,
+        owner: parsed.data.owner ?? '',
+        description: parsed.data.description,
       },
       failed,
     )

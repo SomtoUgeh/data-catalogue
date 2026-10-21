@@ -96,7 +96,7 @@ Data flow:
 3. The `/` loader calls `context.queryClient.ensureQueryData(datasetsQueryOptions())`. That factory wraps the generated `listDatasets` SDK call.
 4. `CataloguePage` reads the same query with `useSuspenseQuery`. Pending and error UI stay on the route (`pendingComponent` / `errorComponent`).
 5. Create and delete are `useMutation` hooks. On success they `invalidateQueries` the datasets key. Form values live in TanStack Form; pending and request errors come from the mutation.
-6. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK. There is no hand-written `fetch`. MSW mirrors the same contract in Vitest and, when `VITE_API_MOCKING=true`, in the browser.
+6. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK plus Zod schemas. The SDK parses successful responses with those schemas. There is no hand-written `fetch`. MSW mirrors the same contract in Vitest and, when `VITE_API_MOCKING=true`, in the browser.
 
 ## Design decisions
 
@@ -110,15 +110,15 @@ Data flow:
 
 **Why the gateway is there.** Cloudflare AI Gateway sits in front of Workers AI so we get request logs, caching, rate limits, and a provider swap (change `LLM_MODEL` from `workers-ai/...` to `openai/...`) without changing application code. `cf-aig-metadata` carries the dataset id so a log line can be traced back to a catalogue row.
 
-**400, not 422.** FastAPI's default validation status is 422. The brief asks for 400 with a descriptive message, so the app factory remaps `RequestValidationError`.
+**400, not 422.** FastAPI's default validation status is 422. The brief asks for 400 with a descriptive message, so the app factory remaps `RequestValidationError` to `{ "error": "Validation failed", "fields": [{ "field", "message" }] }`. The top-level `error` string stays so a 400 is still obvious; `fields` is how the form maps messages without regex.
 
 **Curation fallback.** If the agent raises (`UnexpectedModelBehavior`, timeout, HTTP error, or anything else), the dataset still saves with placeholder tags/summary and `curation_status: "failed"`. The form and the row show that to the user. `CURATOR=fail` forces this path for a demo.
 
-**@hey-api/openapi-ts, not orval.** The review asked for one well-known generator. Hey API's `@tanstack/react-query` plugin emits `listDatasetsOptions` / mutation helpers that match the Query wiring we already want. Orval's MSW plugin would have generated handlers too; we wrote those by hand so they can stay aligned with FastAPI's 400 body, seeded rows, and keyword-like tags. The generated folder is committed; run `npm run gen:api` after a schema change.
+**@hey-api/openapi-ts, not orval.** The review asked for one well-known generator. Hey API's `@tanstack/react-query` plugin emits `listDatasetsOptions` / mutation helpers that match the Query wiring we already want. The `zod` plugin emits `zDatasetCreate` / `zValidationErrorResponse` from the same spec; the SDK `validator` option parses successful responses against those schemas. Pydantic `min_length=1` + `str_strip_whitespace` on `DatasetCreate` is what OpenAPI publishes as `minLength: 1`, so the generated Zod rules mirror FastAPI. Orval's MSW plugin would have generated handlers too; we wrote those by hand so they can stay aligned with FastAPI's 400 body, seeded rows, and keyword-like tags. The generated folder is committed; run `npm run gen:api` after a schema change.
 
 **MSW for tests and optional browser demos.** Vitest uses `setupServer` against the same handlers as the opt-in worker. No `vi.mock` of an API module. Handlers return the same JSON shapes and 200/201/400/404 codes as FastAPI.
 
-**TanStack Form.** Field-level `onSubmit` validators for empty name/description. The create mutation owns pending (`Curating…`) and request errors. Server 400 messages are mapped back onto the matching field.
+**TanStack Form.** The add form uses the generated `zDatasetCreate` schema, refined for trimmed non-empty name/description (`Name is required`). It is passed as Standard Schema `validators: { onChange, onSubmit }` — no adapter. Server 400s go through `parseApiError` / `getFieldErrors` (safeParse, never a raw `ZodError`) and `setFieldMeta`. The create mutation owns pending (`Curating…`) and non-field request errors.
 
 **UI.** Tailwind CSS v4 + shadcn/ui only — no leftover plain CSS classes. Neutral canvas with one blue accent. Inter, then the system sans stack. Desktop is a two-column internal-tool layout: sticky form card on the left, dataset list on the right; they stack on small screens. Tags are Badges (PII uses the warning token). Loader pending uses Skeleton rows; an empty catalogue is a quiet card. Request errors and the curation fallback are non-blocking Alerts. Focus rings stay visible; motion respects `prefers-reduced-motion`. Dark tokens follow `prefers-color-scheme` only.
 
