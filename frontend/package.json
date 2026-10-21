@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite --port 3000",
     "generate-routes": "tsr generate",
-    "gen:api": "python3 ../backend/scripts/export_openapi.py > openapi.json && openapi-ts",
+    "gen:api": "uv run --project ../backend python ../backend/scripts/export_openapi.py > openapi.json && openapi-ts",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",

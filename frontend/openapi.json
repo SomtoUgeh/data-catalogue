@@ -1,8 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Data Catalogue",
-    "description": "Register datasets, attach curator tags and a one-sentence summary, then list or delete them. Validation failures are 400 with `{ \"error\": \"Validation failed\", \"fields\": [...] }`, not FastAPI's default 422.",
+    "title": "Data Catalogue API",
     "version": "1.0.0"
   },
   "paths": {
@@ -11,11 +10,11 @@
         "tags": [
           "datasets"
         ],
-        "summary": "List datasets",
+        "summary": "List Datasets",
         "operationId": "listDatasets",
         "responses": {
           "200": {
-            "description": "Every registered dataset, including the three seeded rows.",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -34,7 +33,8 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Register a dataset",
+        "summary": "Create Dataset",
+        "description": "Saves the dataset after running AI curation. If curation fails, the dataset is still saved.",
         "operationId": "createDataset",
         "requestBody": {
           "content": {
@@ -48,7 +48,7 @@
         },
         "responses": {
           "201": {
-            "description": "The saved row, with curator tags and a one-sentence summary.",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -58,35 +58,11 @@
             }
           },
           "400": {
-            "description": "Name or description is missing or blank.",
+            "description": "Bad Request",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ValidationErrorResponse"
-                },
-                "examples": {
-                  "missingName": {
-                    "value": {
-                      "error": "Validation failed",
-                      "fields": [
-                        {
-                          "field": "name",
-                          "message": "name is required"
-                        }
-                      ]
-                    }
-                  },
-                  "blankName": {
-                    "value": {
-                      "error": "Validation failed",
-                      "fields": [
-                        {
-                          "field": "name",
-                          "message": "name is required"
-                        }
-                      ]
-                    }
-                  }
                 }
               }
             }
@@ -109,7 +85,7 @@
         "tags": [
           "datasets"
         ],
-        "summary": "Delete a dataset",
+        "summary": "Delete Dataset",
         "operationId": "deleteDataset",
         "parameters": [
           {
@@ -124,7 +100,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The deleted row.",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
@@ -134,17 +110,14 @@
             }
           },
           "404": {
-            "description": "No dataset with that id.",
             "content": {
               "application/json": {
-                "example": {
-                  "error": "Dataset with id 'missing' was not found."
-                },
                 "schema": {
                   "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
-            }
+            },
+            "description": "Not Found"
           },
           "422": {
             "description": "Validation Error",
@@ -164,151 +137,86 @@
     "schemas": {
       "Dataset": {
         "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id",
-            "examples": [
-              "4"
-            ]
-          },
           "name": {
             "type": "string",
-            "title": "Name",
-            "examples": [
-              "Trade Confirmations"
-            ]
+            "title": "Name"
           },
           "owner": {
             "type": "string",
-            "title": "Owner",
-            "examples": [
-              "Middle Office"
-            ]
+            "title": "Owner"
           },
           "description": {
             "type": "string",
-            "title": "Description",
-            "examples": [
-              "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date."
-            ]
+            "title": "Description"
           },
           "tags": {
             "items": {
               "type": "string"
             },
             "type": "array",
-            "maxItems": 5,
-            "title": "Tags",
-            "examples": [
-              [
-                "trading",
-                "finance",
-                "settlements",
-                "daily"
-              ]
-            ]
+            "title": "Tags"
           },
           "summary": {
             "type": "string",
-            "title": "Summary",
-            "examples": [
-              "A daily export of confirmed trades covering counterparties and settlements."
-            ]
+            "title": "Summary"
           },
           "curation_status": {
             "type": "string",
             "enum": [
               "ok",
-              "partial",
               "failed"
             ],
-            "title": "Curation Status",
-            "description": "ok when Jev and Llama both succeeded. partial when exactly one succeeded. failed when both failed (empty tags and a placeholder summary).",
-            "default": "ok",
-            "examples": [
-              "ok"
-            ]
+            "title": "Curation Status"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
           }
         },
         "type": "object",
         "required": [
-          "id",
           "name",
           "owner",
           "description",
           "tags",
-          "summary"
+          "summary",
+          "curation_status",
+          "id"
         ],
         "title": "Dataset",
-        "description": "A registered catalogue entry, including curator tags and summary.",
-        "examples": [
-          {
-            "curation_status": "ok",
-            "description": "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.",
-            "id": "4",
-            "name": "Trade Confirmations",
-            "owner": "Middle Office",
-            "summary": "A daily export of confirmed trades covering counterparties and settlements.",
-            "tags": [
-              "trading",
-              "finance",
-              "settlements",
-              "daily"
-            ]
-          }
-        ]
+        "description": "A stored dataset, as returned by every endpoint."
       },
       "DatasetCreate": {
         "properties": {
           "name": {
             "type": "string",
             "minLength": 1,
-            "title": "Name",
-            "examples": [
-              "Trade Confirmations"
-            ]
+            "title": "Name"
           },
           "owner": {
             "type": "string",
-            "minLength": 1,
             "title": "Owner",
-            "examples": [
-              "Middle Office"
-            ]
+            "default": ""
           },
           "description": {
             "type": "string",
             "minLength": 1,
-            "title": "Description",
-            "examples": [
-              "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date."
-            ]
+            "title": "Description"
           }
         },
         "type": "object",
         "required": [
           "name",
-          "owner",
           "description"
         ],
         "title": "DatasetCreate",
-        "description": "Body for registering a dataset. Name, owner, and description are required.",
-        "examples": [
-          {
-            "description": "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.",
-            "name": "Trade Confirmations",
-            "owner": "Middle Office"
-          }
-        ]
+        "description": "Request body for POST /datasets."
       },
       "ErrorResponse": {
         "properties": {
           "error": {
             "type": "string",
-            "title": "Error",
-            "examples": [
-              "Dataset with id 'missing' was not found."
-            ]
+            "title": "Error"
           }
         },
         "type": "object",
@@ -316,28 +224,17 @@
           "error"
         ],
         "title": "ErrorResponse",
-        "description": "Non-validation error body, e.g. 404. Always includes `{ \"error\": \"...\" }`.",
-        "examples": [
-          {
-            "error": "Dataset with id 'missing' was not found."
-          }
-        ]
+        "description": "Body of every error response, for example a 404."
       },
       "FieldError": {
         "properties": {
           "field": {
             "type": "string",
-            "title": "Field",
-            "examples": [
-              "name"
-            ]
+            "title": "Field"
           },
           "message": {
             "type": "string",
-            "title": "Message",
-            "examples": [
-              "name is required"
-            ]
+            "title": "Message"
           }
         },
         "type": "object",
@@ -345,8 +242,7 @@
           "field",
           "message"
         ],
-        "title": "FieldError",
-        "description": "One invalid request field."
+        "title": "FieldError"
       },
       "HTTPValidationError": {
         "properties": {
@@ -405,10 +301,7 @@
         "properties": {
           "error": {
             "type": "string",
-            "title": "Error",
-            "examples": [
-              "Validation failed"
-            ]
+            "title": "Error"
           },
           "fields": {
             "items": {
@@ -424,18 +317,7 @@
           "fields"
         ],
         "title": "ValidationErrorResponse",
-        "description": "400 body. `error` stays a string; `fields` names each invalid input.",
-        "examples": [
-          {
-            "error": "Validation failed",
-            "fields": [
-              {
-                "field": "name",
-                "message": "name is required"
-              }
-            ]
-          }
-        ]
+        "description": "Body of a 400. `fields` names each invalid request field so the UI can show errors inline."
       }
     }
   }

@@ -1,16 +1,19 @@
+# Python
 .venv/
-venv/
+.venv-workers/
 __pycache__/
-*.py[cod]
 .pytest_cache/
 .ruff_cache/
-.mypy_cache/
-.coverage
-htmlcov/
 .env
+
+# Cloudflare tooling (pywrangler vendors dependencies into python_modules/)
+.wrangler/
+python_modules/
+pylock.toml
+
+# Node
 node_modules/
 dist/
-coverage/
-*.egg-info/
+
 .DS_Store
-frontend/test-results/
+.tanstack/

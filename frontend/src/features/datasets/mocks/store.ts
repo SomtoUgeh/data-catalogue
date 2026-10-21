@@ -21,7 +21,7 @@ export function createStoredDataset(payload: DatasetCreate): Dataset {
   const dataset: Dataset = {
     id: String(nextId),
     name: payload.name,
-    owner: payload.owner,
+    owner: payload.owner ?? '',
     description: payload.description,
     tags: ['trading', 'finance', 'settlements', 'daily'],
     summary: `A catalogue entry for ${payload.name}.`,

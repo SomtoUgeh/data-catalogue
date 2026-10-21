@@ -5,37 +5,33 @@ import * as z from 'zod';
 /**
  * Dataset
  *
- * A registered catalogue entry, including curator tags and summary.
+ * A stored dataset, as returned by every endpoint.
  */
 export const zDataset = z.object({
-    id: z.string(),
     name: z.string(),
     owner: z.string(),
     description: z.string(),
-    tags: z.array(z.string()).max(5),
+    tags: z.array(z.string()),
     summary: z.string(),
-    curation_status: z.enum([
-        'ok',
-        'partial',
-        'failed'
-    ]).optional().default('ok')
+    curation_status: z.enum(['ok', 'failed']),
+    id: z.string()
 });
 
 /**
  * DatasetCreate
  *
- * Body for registering a dataset. Name, owner, and description are required.
+ * Request body for POST /datasets.
  */
 export const zDatasetCreate = z.object({
     name: z.string().min(1),
-    owner: z.string().min(1),
+    owner: z.string().optional().default(''),
     description: z.string().min(1)
 });
 
 /**
  * ErrorResponse
  *
- * Non-validation error body, e.g. 404. Always includes `{ "error": "..." }`.
+ * Body of every error response, for example a 404.
  */
 export const zErrorResponse = z.object({
     error: z.string()
@@ -43,8 +39,6 @@ export const zErrorResponse = z.object({
 
 /**
  * FieldError
- *
- * One invalid request field.
  */
 export const zFieldError = z.object({
     field: z.string(),
@@ -72,7 +66,7 @@ export const zHttpValidationError = z.object({
 /**
  * ValidationErrorResponse
  *
- * 400 body. `error` stays a string; `fields` names each invalid input.
+ * Body of a 400. `fields` names each invalid request field so the UI can show errors inline.
  */
 export const zValidationErrorResponse = z.object({
     error: z.string(),
@@ -82,14 +76,14 @@ export const zValidationErrorResponse = z.object({
 /**
  * Response Listdatasets
  *
- * Every registered dataset, including the three seeded rows.
+ * Successful Response
  */
 export const zListDatasetsResponse = z.array(zDataset);
 
 export const zCreateDatasetBody = zDatasetCreate;
 
 /**
- * The saved row, with curator tags and a one-sentence summary.
+ * Successful Response
  */
 export const zCreateDatasetResponse = zDataset;
 
@@ -98,6 +92,6 @@ export const zDeleteDatasetPath = z.object({
 });
 
 /**
- * The deleted row.
+ * Successful Response
  */
 export const zDeleteDatasetResponse = zDataset;

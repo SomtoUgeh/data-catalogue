@@ -42,7 +42,7 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
 export const listDatasetsQueryKey = (options?: Options<ListDatasetsData>) => createQueryKey('listDatasets', options);
 
 /**
- * List datasets
+ * List Datasets
  */
 export const listDatasetsOptions = (options?: Options<ListDatasetsData>) => queryOptions<ListDatasetsResponse, DefaultError, ListDatasetsResponse, ReturnType<typeof listDatasetsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -58,7 +58,9 @@ export const listDatasetsOptions = (options?: Options<ListDatasetsData>) => quer
 });
 
 /**
- * Register a dataset
+ * Create Dataset
+ *
+ * Saves the dataset after running AI curation. If curation fails, the dataset is still saved.
  */
 export const createDatasetMutation = (options?: Partial<Options<CreateDatasetData>>): UseMutationOptions<CreateDatasetResponse, CreateDatasetError, Options<CreateDatasetData>> => {
     const mutationOptions: UseMutationOptions<CreateDatasetResponse, CreateDatasetError, Options<CreateDatasetData>> = {
@@ -75,7 +77,7 @@ export const createDatasetMutation = (options?: Partial<Options<CreateDatasetDat
 };
 
 /**
- * Delete a dataset
+ * Delete Dataset
  */
 export const deleteDatasetMutation = (options?: Partial<Options<DeleteDatasetData>>): UseMutationOptions<DeleteDatasetResponse, DeleteDatasetError, Options<DeleteDatasetData>> => {
     const mutationOptions: UseMutationOptions<DeleteDatasetResponse, DeleteDatasetError, Options<DeleteDatasetData>> = {

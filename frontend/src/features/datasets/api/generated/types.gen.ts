@@ -7,13 +7,9 @@ export type ClientOptions = {
 /**
  * Dataset
  *
- * A registered catalogue entry, including curator tags and summary.
+ * A stored dataset, as returned by every endpoint.
  */
 export type Dataset = {
-    /**
-     * Id
-     */
-    id: string;
     /**
      * Name
      */
@@ -36,16 +32,18 @@ export type Dataset = {
     summary: string;
     /**
      * Curation Status
-     *
-     * ok when Jev and Llama both succeeded. partial when exactly one succeeded. failed when both failed (empty tags and a placeholder summary).
      */
-    curation_status?: 'ok' | 'partial' | 'failed';
+    curation_status: 'ok' | 'failed';
+    /**
+     * Id
+     */
+    id: string;
 };
 
 /**
  * DatasetCreate
  *
- * Body for registering a dataset. Name, owner, and description are required.
+ * Request body for POST /datasets.
  */
 export type DatasetCreate = {
     /**
@@ -55,7 +53,7 @@ export type DatasetCreate = {
     /**
      * Owner
      */
-    owner: string;
+    owner?: string;
     /**
      * Description
      */
@@ -65,7 +63,7 @@ export type DatasetCreate = {
 /**
  * ErrorResponse
  *
- * Non-validation error body, e.g. 404. Always includes `{ "error": "..." }`.
+ * Body of every error response, for example a 404.
  */
 export type ErrorResponse = {
     /**
@@ -76,8 +74,6 @@ export type ErrorResponse = {
 
 /**
  * FieldError
- *
- * One invalid request field.
  */
 export type FieldError = {
     /**
@@ -131,7 +127,7 @@ export type ValidationError = {
 /**
  * ValidationErrorResponse
  *
- * 400 body. `error` stays a string; `fields` names each invalid input.
+ * Body of a 400. `fields` names each invalid request field so the UI can show errors inline.
  */
 export type ValidationErrorResponse = {
     /**
@@ -155,7 +151,7 @@ export type ListDatasetsResponses = {
     /**
      * Response Listdatasets
      *
-     * Every registered dataset, including the three seeded rows.
+     * Successful Response
      */
     200: Array<Dataset>;
 };
@@ -171,7 +167,7 @@ export type CreateDatasetData = {
 
 export type CreateDatasetErrors = {
     /**
-     * Name or description is missing or blank.
+     * Bad Request
      */
     400: ValidationErrorResponse;
     /**
@@ -184,7 +180,7 @@ export type CreateDatasetError = CreateDatasetErrors[keyof CreateDatasetErrors];
 
 export type CreateDatasetResponses = {
     /**
-     * The saved row, with curator tags and a one-sentence summary.
+     * Successful Response
      */
     201: Dataset;
 };
@@ -205,7 +201,7 @@ export type DeleteDatasetData = {
 
 export type DeleteDatasetErrors = {
     /**
-     * No dataset with that id.
+     * Not Found
      */
     404: ErrorResponse;
     /**
@@ -218,7 +214,7 @@ export type DeleteDatasetError = DeleteDatasetErrors[keyof DeleteDatasetErrors];
 
 export type DeleteDatasetResponses = {
     /**
-     * The deleted row.
+     * Successful Response
      */
     200: Dataset;
 };

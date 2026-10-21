@@ -1,16 +1,35 @@
+[project]
+name = "data-catalogue-api"
+version = "0.1.0"
+description = "FastAPI data catalogue. Runs under uvicorn locally and as a Cloudflare Python Worker."
+requires-python = ">=3.12"
+# pywrangler vendors these into the Worker, so keep the list small.
+dependencies = [
+    "fastapi>=0.156.8",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.15.0",
+    "uvicorn>=0.54.0",
+    "workers-py>=1.17.8",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
 [tool.ruff]
-line-length = 100
-target-version = "py312"
-src = ["app", "tests"]
+line-length = 120
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
-ignore = ["E501"]
+select = ["E", "F", "I", "UP"]
 
-[tool.mypy]
-python_version = "3.12"
-packages = ["app"]
-check_untyped_defs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-pretty = true
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]

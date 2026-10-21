@@ -20,7 +20,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
- * List datasets
+ * List Datasets
  */
 export const listDatasets = <ThrowOnError extends boolean = false>(options?: Options<ListDatasetsData, ThrowOnError>): RequestResult<ListDatasetsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListDatasetsResponses, unknown, ThrowOnError>({
     responseValidator: async (data) => await zListDatasetsResponse.parseAsync(data),
@@ -29,7 +29,9 @@ export const listDatasets = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
- * Register a dataset
+ * Create Dataset
+ *
+ * Saves the dataset after running AI curation. If curation fails, the dataset is still saved.
  */
 export const createDataset = <ThrowOnError extends boolean = false>(options: Options<CreateDatasetData, ThrowOnError>): RequestResult<CreateDatasetResponses, CreateDatasetErrors, ThrowOnError> => (options.client ?? client).post<CreateDatasetResponses, CreateDatasetErrors, ThrowOnError>({
     responseValidator: async (data) => await zCreateDatasetResponse.parseAsync(data),
@@ -42,7 +44,7 @@ export const createDataset = <ThrowOnError extends boolean = false>(options: Opt
 });
 
 /**
- * Delete a dataset
+ * Delete Dataset
  */
 export const deleteDataset = <ThrowOnError extends boolean = false>(options: Options<DeleteDatasetData, ThrowOnError>): RequestResult<DeleteDatasetResponses, DeleteDatasetErrors, ThrowOnError> => (options.client ?? client).delete<DeleteDatasetResponses, DeleteDatasetErrors, ThrowOnError>({
     responseValidator: async (data) => await zDeleteDatasetResponse.parseAsync(data),
