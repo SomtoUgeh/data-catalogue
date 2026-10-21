@@ -8,8 +8,6 @@ from app.curation.base import CurationError
 from app.curation.tags import MAX_TAGS, NOUL_THRESHOLD, TAG_REGISTRY
 from app.schemas import DatasetCreate
 
-DEFAULT_CLASSIFIER_MODEL = "typesafe/jev"
-
 
 def tag_questions() -> dict[str, dict]:
     return {

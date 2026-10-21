@@ -1,9 +1,5 @@
 import type { Dataset } from '../api/generated/types.gen'
 
-export const PLACEHOLDER_TAGS: string[] = []
-export const PLACEHOLDER_SUMMARY =
-  'Curation unavailable. Tags and summary will appear once tagging succeeds.'
-
 export const SEEDED_DATASETS: Dataset[] = [
   {
     id: '1',

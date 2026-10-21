@@ -3,7 +3,6 @@ from app.curation.outcome import CurationOk, CurationOutcome, CurationPartial, P
 from app.main import create_app
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import DatasetCreate
-from app.services.dataset_service import PLACEHOLDER_TAGS
 from fastapi.testclient import TestClient
 
 TRADE_CONFIRMATIONS = {
@@ -176,7 +175,7 @@ def test_create_still_saves_when_curation_fails() -> None:
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == TRADE_CONFIRMATIONS["name"]
-    assert body["tags"] == PLACEHOLDER_TAGS
+    assert body["tags"] == []
     assert body["summary"] == PLACEHOLDER_SUMMARY
     assert body["curation_status"] == "failed"
 

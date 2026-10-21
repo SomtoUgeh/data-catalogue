@@ -8,13 +8,12 @@ from pydantic_ai.models.test import TestModel
 
 from app.config import DEFAULT_CLASSIFIER_MODEL, DEFAULT_LLM_MODEL, Settings, get_settings
 from app.curation.classifier import ClassifierCurator, tags_from_answers
-from app.curation.tags import TAG_REGISTRY
 from app.curation.factory import get_curator
 from app.curation.hybrid import HybridCurator
 from app.curation.llm import LlmCurator
 from app.curation.outcome import PLACEHOLDER_SUMMARY, compose_curation
-from app.curation.tags import normalize_tags
-from app.schemas import CurationResult, DatasetCreate
+from app.curation.tags import TAG_REGISTRY, normalize_tags
+from app.schemas import DatasetCreate, SummaryResult
 from app.services.dataset_service import _safe_error
 
 models.ALLOW_MODEL_REQUESTS = False
@@ -56,14 +55,11 @@ def test_normalize_tags_lowercases_dedupes_and_keeps_acronyms() -> None:
     ) == ["finance", "PII", "middle", "notional_value", "daily"]
 
 
-def test_curation_result_rejects_short_or_wordy_summaries() -> None:
+def test_summary_result_rejects_short_or_wordy_summaries() -> None:
     with pytest.raises(ValueError):
-        CurationResult(tags=["trading", "finance", "daily"], summary="Nope")
+        SummaryResult(summary="Nope")
     with pytest.raises(ValueError):
-        CurationResult(
-            tags=["trading", "finance", "daily"],
-            summary="A " + "word " * 30,
-        )
+        SummaryResult(summary="A " + "word " * 30)
 
 
 def _settings() -> Settings:
@@ -84,26 +80,16 @@ def _function_model(*texts: str) -> FunctionModel:
     return FunctionModel(reply)
 
 
-def test_llm_curator_accepts_valid_testmodel_output() -> None:
-    curator = LlmCurator(
-        _settings(),
-        model=TestModel(custom_output_text=json.dumps(VALID_OUTPUT)),
-    )
-    result = curator.curate(TRADE, dataset_id="4")
-    assert result.tags == VALID_OUTPUT["tags"]
-    assert result.summary.startswith("A daily export")
-
-
-def test_llm_curator_retries_invalid_then_valid_function_model() -> None:
+def test_llm_summarise_retries_invalid_then_valid_function_model() -> None:
     curator = LlmCurator(
         _settings(),
         model=_function_model(
-            json.dumps({"tags": ["x"], "summary": "Nope"}),
-            json.dumps(VALID_OUTPUT),
+            json.dumps({"summary": "Nope"}),
+            json.dumps({"summary": VALID_OUTPUT["summary"]}),
         ),
     )
-    result = curator.curate(TRADE, dataset_id="4")
-    assert result.tags == VALID_OUTPUT["tags"]
+    summary = curator.summarise(TRADE, ["trading", "finance", "daily"])
+    assert summary.startswith("A daily export")
 
 
 def test_safe_error_redacts_bearer_tokens() -> None:

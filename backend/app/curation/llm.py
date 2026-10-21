@@ -8,32 +8,27 @@ from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.config import Settings
 from app.curation.base import CurationError
-from app.schemas import CurationResult, DatasetCreate, SummaryResult
+from app.schemas import DatasetCreate, SummaryResult
 
-CURATION_INSTRUCTIONS = """You curate an internal data catalogue.
+SUMMARY_INSTRUCTIONS = """You write one catalogue summary sentence.
 
 Return a JSON object that matches the provided schema.
 
-Pick 3-5 tags from these families only:
-- domain: finance, trading, settlements, transactions, inventory, operations, warehouse, HR
-- data subject: employees, customers, products
-- sensitivity: PII (only if the description names people-identifying fields such as customer ID, name, or email)
-- cadence: daily, weekly, monthly
-
 Rules:
-- lowercase except acronyms PII and HR
-- never emit owner or team tokens (not "middle", "office", "finance team")
-- never emit raw field names (not "NOTIONAL_VALUE", "instrument_type")
-- summary: one sentence, under 25 words, starts with "A ", derived from the description
+- one sentence, under 25 words, starts with "A "
+- derive it from the name, description, and tags
+- do not invent tags or change the tags you were given
 
 Examples:
 name: Customer Transactions
 description: Contains daily transaction records including transaction ID, customer ID, amount, currency, and timestamp.
-{"tags": ["finance", "transactions", "PII", "daily"], "summary": "A daily feed of customer transaction records covering amounts, currencies, and timestamps."}
+tags: finance, transactions, PII, daily
+{"summary": "A daily feed of customer transaction records covering amounts, currencies, and timestamps."}
 
 name: Product Inventory
 description: Snapshot of warehouse stock levels by SKU, including product name, quantity on hand, and reorder threshold.
-{"tags": ["inventory", "operations", "warehouse"], "summary": "A warehouse snapshot tracking stock levels and reorder thresholds per product SKU."}
+tags: inventory, operations, warehouse
+{"summary": "A warehouse snapshot tracking stock levels and reorder thresholds per product SKU."}
 """
 
 
@@ -48,14 +43,6 @@ class LlmCurator:
         self._model = model
         self._http_client = http_client
 
-    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
-        if self._model is None and not self.settings.llm_ready:
-            raise CurationError("Cloudflare AI Gateway is not configured")
-
-        prompt = f"name: {payload.name}\ndescription: {payload.description}"
-        result = self._agent(dataset_id).run_sync(prompt)
-        return result.output
-
     def summarise(self, payload: DatasetCreate, tags: list[str], dataset_id: str = "") -> str:
         if self._model is None and not self.settings.llm_ready:
             raise CurationError("Cloudflare AI Gateway is not configured")
@@ -69,21 +56,12 @@ class LlmCurator:
         result = self._summary_agent(dataset_id).run_sync(prompt)
         return result.output.summary
 
-    def _agent(self, dataset_id: str) -> Agent[None, CurationResult]:
-        model = self._model or self._gateway_model(dataset_id)
-        return Agent(
-            model,
-            output_type=PromptedOutput(CurationResult),
-            instructions=CURATION_INSTRUCTIONS,
-            retries={"output": 2},
-        )
-
     def _summary_agent(self, dataset_id: str) -> Agent[None, SummaryResult]:
         model = self._model or self._gateway_model(dataset_id)
         return Agent(
             model,
             output_type=PromptedOutput(SummaryResult),
-            instructions=CURATION_INSTRUCTIONS,
+            instructions=SUMMARY_INSTRUCTIONS,
             retries={"output": 2},
         )
 

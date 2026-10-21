@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.curation.tags import MAX_TAGS, normalize_tags
+from app.curation.tags import MAX_TAGS
 
 TRADE_CONFIRMATIONS_CREATE = {
     "name": "Trade Confirmations",
@@ -47,21 +47,12 @@ class DatasetCreate(BaseModel):
     )
 
 
-class CurationResult(BaseModel):
-    """Structured curator output. The LLM agent validates against this model."""
+class SummaryResult(BaseModel):
+    """Llama output after Jev has already chosen tags."""
 
-    model_config = ConfigDict(title="CurationResult")
+    model_config = ConfigDict(title="SummaryResult")
 
-    tags: list[str] = Field(min_length=3, max_length=MAX_TAGS)
     summary: str
-
-    @field_validator("tags")
-    @classmethod
-    def clean_tags(cls, value: list[str]) -> list[str]:
-        tags = normalize_tags(value, limit=MAX_TAGS)
-        if not 3 <= len(tags) <= MAX_TAGS:
-            raise ValueError(f"tags must contain between 3 and {MAX_TAGS} labels")
-        return tags
 
     @field_validator("summary")
     @classmethod
@@ -75,19 +66,6 @@ class CurationResult(BaseModel):
         if not (3 <= len(words) <= 25):
             raise ValueError("summary must be one sentence under 25 words")
         return text if text.endswith(".") else f"{text}."
-
-
-class SummaryResult(BaseModel):
-    """LLM-only summary once a classifier has already chosen tags."""
-
-    model_config = ConfigDict(title="SummaryResult")
-
-    summary: str
-
-    @field_validator("summary")
-    @classmethod
-    def clean_summary(cls, value: str) -> str:
-        return CurationResult.clean_summary(value)
 
 
 class Dataset(BaseModel):

@@ -49,15 +49,11 @@ export const datasetsHandlers = [
       return validationFailed(fields)
     }
 
-    const failed = request.headers.get('x-curator') === 'fail'
-    const created = createStoredDataset(
-      {
-        name: parsed.data.name,
-        owner: parsed.data.owner,
-        description: parsed.data.description,
-      },
-      failed,
-    )
+    const created = createStoredDataset({
+      name: parsed.data.name,
+      owner: parsed.data.owner,
+      description: parsed.data.description,
+    })
     return HttpResponse.json(created, { status: 201 })
   }),
 

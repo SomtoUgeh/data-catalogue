@@ -3,21 +3,19 @@ import re
 import time
 
 from app.curation.base import Curator
-from app.curation.outcome import CurationFailed, PLACEHOLDER_SUMMARY
+from app.curation.outcome import CurationFailed
 from app.curation.tags import MAX_TAGS, normalize_tags
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import Dataset, DatasetCreate
 
 logger = logging.getLogger("uvicorn.error")
 
-PLACEHOLDER_TAGS: list[str] = []
-
 _BEARER_RE = re.compile(r"(?i)\bbearer\s+\S+")
 _KEY_RE = re.compile(r"(?i)\b(?:authorization|api[_-]?key)\s*[=:]\s*\S+")
 
 
 def _safe_error(exc: Exception) -> str:
-    """Log class, HTTP status, and a short body — never tokens or keys."""
+    """Log class, HTTP status, and a short body. Never tokens or keys."""
     response = getattr(exc, "response", None)
     status = getattr(response, "status_code", None)
     body = ""
