@@ -21,5 +21,8 @@
     }
   ],
   "ai": { "binding": "AI" },
-  "vars": { "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast" }
+  "vars": {
+    "CLASSIFIER_MODEL": "@cf/cloudflare/clef-flash",
+    "SUMMARY_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+  }
 }

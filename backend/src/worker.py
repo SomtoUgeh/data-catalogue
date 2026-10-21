@@ -1,6 +1,7 @@
 """Cloudflare Worker entry point. Serves the FastAPI app with D1 storage and Workers AI curation.
 
-Bindings (DB, AI) and vars (AI_MODEL) come from wrangler.jsonc and arrive on each request as `env`.
+Bindings (DB, AI) and vars (CLASSIFIER_MODEL, SUMMARY_MODEL) come from wrangler.jsonc and arrive on each
+request as `env`.
 """
 
 from fastapi import Request
@@ -17,7 +18,8 @@ app = create_app()
 
 def service_from_env(request: Request) -> DatasetService:
     env = request.scope["env"]
-    return DatasetService(D1DatasetStore(env.DB), WorkersAiCurator(env.AI, env.AI_MODEL))
+    curator = WorkersAiCurator(env.AI, env.CLASSIFIER_MODEL, env.SUMMARY_MODEL)
+    return DatasetService(D1DatasetStore(env.DB), curator)
 
 
 app.dependency_overrides[get_service] = service_from_env

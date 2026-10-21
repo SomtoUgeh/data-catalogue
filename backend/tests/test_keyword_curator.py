@@ -29,7 +29,7 @@ def curate(name: str, description: str) -> tuple[list[str], str]:
             "Snapshot of warehouse stock levels by SKU, including product name and reorder threshold.",
             ["inventory", "operations", "warehouse"],
         ),
-        ("Device Sales", "Smartphone sales by region.", ["uncategorised"]),
+        ("Device Sales", "Smartphone sales by region.", ["sales"]),
         ("Misc", "Assorted notes.", ["uncategorised"]),
     ],
 )

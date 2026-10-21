@@ -1,33 +1,8 @@
 import re
 
 from app.curation.base import CurationResult
+from app.curation.tags import CADENCE_TAGS, DOMAIN_TAGS, MAX_TAGS, PII_TAG
 from app.schemas import DatasetCreate
-
-# A tag is added when any of its keywords appears as a word in the name or description.
-# Dict order is the order tags are returned in.
-DOMAIN_TAGS = {
-    "trading": {"trade", "trades", "trading", "instrument", "counterparty", "notional"},
-    "finance": {
-        "finance",
-        "financial",
-        "transaction",
-        "transactions",
-        "amount",
-        "currency",
-        "notional",
-        "payment",
-        "payments",
-    },
-    "settlements": {"settlement", "settlements"},
-    "transactions": {"transaction", "transactions"},
-    "inventory": {"inventory", "stock", "sku", "reorder"},
-    "operations": {"operations", "warehouse", "logistics", "shipment", "shipments"},
-    "warehouse": {"warehouse", "warehouses"},
-    "HR": {"hr", "employee", "employees", "payroll", "department"},
-    "employees": {"employee", "employees", "staff"},
-    "customers": {"customer", "customers", "client", "clients"},
-}
-CADENCE_TAGS = ("daily", "weekly", "monthly")
 
 # Fields that identify a person. A bare "name" only counts when the dataset is about people,
 # so "product name" does not make a dataset PII.
@@ -40,7 +15,7 @@ MAX_SUMMARY_WORDS = 25
 
 
 class KeywordCurator:
-    """Rule-based stand-in for an LLM: tags come from a keyword table, the summary from the description."""
+    """Rule-based stand-in for the AI curator: tags come from the vocabulary's keywords, the summary from the text."""
 
     async def curate(self, dataset: DatasetCreate) -> CurationResult:
         tags = _tags(f"{dataset.name} {dataset.description}".lower())
@@ -49,11 +24,11 @@ class KeywordCurator:
 
 def _tags(text: str) -> list[str]:
     words = set(re.findall(r"[a-z0-9]+", text))
-    tags = [tag for tag, keywords in DOMAIN_TAGS.items() if words & keywords]
+    tags = [tag.id for tag in DOMAIN_TAGS if words & tag.keywords]
     if PERSONAL_IDENTIFIER.search(text) or ("name" in words and words & PEOPLE_WORDS):
-        tags.append("PII")
-    tags.extend(cadence for cadence in CADENCE_TAGS if cadence in words)
-    return tags[:6] or ["uncategorised"]
+        tags.append(PII_TAG.id)
+    tags.extend(tag.id for tag in CADENCE_TAGS if words & tag.keywords)
+    return tags[:MAX_TAGS] or ["uncategorised"]
 
 
 def _summary(description: str, tags: list[str]) -> str:
@@ -63,8 +38,8 @@ def _summary(description: str, tags: list[str]) -> str:
     if fields is None:
         return _limit_words(first_sentence)
 
-    cadence = next((tag for tag in tags if tag in CADENCE_TAGS), None)
-    domain = next((tag for tag in tags if tag in DOMAIN_TAGS), None)
+    cadence = next((tag for tag in tags if tag in {t.id for t in CADENCE_TAGS}), None)
+    domain = next((tag for tag in tags if tag in {t.id for t in DOMAIN_TAGS}), None)
     label = " ".join(word for word in (cadence, domain, "dataset") if word)
     article = "An" if label[0].lower() in "aeiou" else "A"
     return _limit_words(f"{article} {label} covering {fields.group(1)}")

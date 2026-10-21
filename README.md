@@ -65,7 +65,11 @@ backend/
     routers/datasets.py     HTTP layer: routes, status codes, OpenAPI operation ids
     services/               business logic: create with curation, delete
     repositories/           DatasetStore protocol, in-memory store, D1 store, seed data
-    curation/               Curator protocol, keyword curator, Workers AI curator
+    curation/
+      tags.py               the tag vocabulary: id, meaning for Clef, keywords for the mock
+      prompts.py            summary instructions for the chat model
+      workers_ai.py         Clef picks tags, Llama writes the summary
+      keyword.py            rule-based mock for local runs and tests
     cloudflare.py           Python/JavaScript value conversion for Cloudflare bindings
   src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI to the app
   migrations/               D1 schema and seed rows
@@ -85,8 +89,8 @@ frontend/src/
 
 One Cloudflare Worker serves the API and the built frontend from the same origin.
 The Python Worker handles `/datasets`, `/docs`, and `/openapi.json`; every other path is served from
-`frontend/dist` as static assets. Storage is a D1 (SQLite) database and curation calls Workers AI
-(Llama 3.3 70B), both through bindings, so no API keys are needed.
+`frontend/dist` as static assets. Storage is a D1 (SQLite) database and curation calls Workers AI,
+both through bindings, so no API keys are needed.
 
 ```bash
 cd frontend && npm ci && npm run build
@@ -116,9 +120,11 @@ uv run pywrangler dev
 - **Curation failure.** The service catches any curation error (network, timeout, invalid model output) and
   logs it. The dataset still saves with empty `tags` and `summary` and `curation_status: "failed"`. The UI
   shows this on the form and on the row.
-- **LLM output.** The Workers AI request uses JSON mode with the `CurationResult` schema, and the reply is
-  validated against the same schema. The prompt asks for 3–6 tags in fixed categories, one sentence of at
-  most 25 words, and gives two worked examples from the sample data.
+- **AI curation.** Two Workers AI calls. Clef (`@cf/cloudflare/clef-flash`), a decision model, answers one
+  yes/no question per tag in `tags.py` with a probability; tags at or above 0.55 are kept, highest first,
+  at most five. So tags never leave the vocabulary. Llama 3.3 70B then writes the summary from the name,
+  description, and chosen tags, in JSON mode, validated with Pydantic. The prompt in `prompts.py` asks for
+  one sentence of at most 25 words and gives two worked examples from the sample data.
 - **Keyword mock.** A table maps keywords to domain tags. PII is added for personal identifiers, or for a
   `name` field in a dataset about people, so "product name" does not count. Cadence comes from words like
   "daily". The summary is built from the field list in the description's first sentence.
