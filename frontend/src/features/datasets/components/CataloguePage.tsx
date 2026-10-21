@@ -2,7 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 
 import { PageShell } from '@/components/page-shell'
 import { StatusBanner } from '@/components/status-banner'
-import { toApiError } from '../api/errors'
+import { getErrorMessage } from '../api/errors'
 import { useDeleteDatasetMutation } from '../api/mutations'
 import { datasetsQueryOptions } from '../api/queryOptions'
 import { AddDatasetForm } from './AddDatasetForm'
@@ -17,7 +17,7 @@ export function CataloguePage() {
     <PageShell>
       <CatalogueHeader />
       {deleteDataset.isError ? (
-        <StatusBanner>{toApiError(deleteDataset.error).message}</StatusBanner>
+        <StatusBanner>{getErrorMessage(deleteDataset.error)}</StatusBanner>
       ) : null}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)]">
         <div className="lg:sticky lg:top-6">
