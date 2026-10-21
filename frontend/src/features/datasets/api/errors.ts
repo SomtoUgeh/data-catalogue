@@ -28,7 +28,6 @@ export async function unwrapResponse<T>(request: Promise<ClientResult<T>>): Prom
   if (error === undefined && data !== undefined) return data
 
   if (!response) {
-    // TanStack Query cancels queries with an AbortError; rethrow it so it is not shown as an error.
     if (error instanceof DOMException && error.name === 'AbortError') throw error
     throw new ApiError('Could not reach the catalogue.', 0)
   }
@@ -57,7 +56,6 @@ export function getErrorMessage(error: unknown): string {
 
 const issueSchema = z.object({ message: z.string() })
 
-/** TanStack Form keeps strings (server errors) and Standard Schema issues (Zod errors) in one list. */
 export function firstErrorMessage(errors: unknown[]): string | undefined {
   const first = errors[0]
   if (typeof first === 'string') return first

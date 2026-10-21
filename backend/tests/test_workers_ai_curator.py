@@ -76,6 +76,7 @@ def test_clef_picks_the_tags_and_the_chat_model_writes_the_summary() -> None:
     assert set(clef_request["questions"]) >= {"trading", "PII", "daily"}
     assert llama_model == "llama"
     assert "Tags: trading, daily, finance, settlements" in llama_request["messages"][-1]["content"]
+    assert "tags" not in llama_request["response_format"]["json_schema"]["properties"]
 
 
 def test_tags_are_ordered_by_probability_and_capped() -> None:
@@ -132,15 +133,36 @@ def test_slow_model_times_out_and_saves_as_failed() -> None:
     assert response.json()["curation_status"] == "failed"
 
 
-def test_no_matching_tags_still_keeps_the_summary() -> None:
-    unsure = {tag: {"noul": 0.2} for tag in CLEF_ANSWERS}
-    ai = FakeAi({**GOOD_REPLIES, "clef": {"answers": unsure}})
+UNSURE_CLEF = {"answers": {tag: {"noul": 0.2} for tag in CLEF_ANSWERS}}
+
+
+def test_chat_model_suggests_tags_when_clef_finds_none(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO)
+    suggested = ["Engineering", " Code  Review ", "engineering", "far too many words here", "x" * 31, "builds", "ci"]
+    llama_reply = {"response": {"summary": SUMMARY, "tags": suggested}}
+    ai = FakeAi({"clef": UNSURE_CLEF, "llama": llama_reply})
+
+    created = client_with(ai).post("/datasets", json=TRADE_CONFIRMATIONS).json()
+
+    assert created["tags"] == ["engineering", "code review", "builds"]
+    assert created["summary"] == SUMMARY
+    assert created["curation_status"] == "ok"
+    _, (_, llama_request, _) = ai.calls
+    assert "Tags: none" in llama_request["messages"][-1]["content"]
+    assert "tags" in llama_request["response_format"]["json_schema"]["required"]
+    (event,) = curation_events(caplog)
+    assert event["tag_source"] == "summary_model"
+    assert event["tags"] == created["tags"]
+
+
+def test_reply_without_the_requested_tags_saves_as_failed() -> None:
+    ai = FakeAi({"clef": UNSURE_CLEF, "llama": {"response": {"summary": SUMMARY}}})
 
     created = client_with(ai).post("/datasets", json=TRADE_CONFIRMATIONS).json()
 
     assert created["tags"] == []
-    assert created["summary"] == SUMMARY
-    assert created["curation_status"] == "ok"
+    assert created["summary"] == ""
+    assert created["curation_status"] == "failed"
 
 
 def test_calls_go_through_ai_gateway_tagged_with_the_logged_curation_id(caplog: pytest.LogCaptureFixture) -> None:
@@ -150,6 +172,7 @@ def test_calls_go_through_ai_gateway_tagged_with_the_logged_curation_id(caplog: 
     client_with(ai, gateway_id="catalogue").post("/datasets", json=TRADE_CONFIRMATIONS)
 
     (event,) = curation_events(caplog)
+    assert event["tag_source"] == "clef"
     assert [options for _, _, options in ai.calls] == [
         {"gateway": {"id": "catalogue", "metadata": {"curation_id": event["curation_id"], "step": "classify"}}},
         {"gateway": {"id": "catalogue", "metadata": {"curation_id": event["curation_id"], "step": "summary"}}},

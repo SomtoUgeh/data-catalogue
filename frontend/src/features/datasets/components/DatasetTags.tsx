@@ -10,7 +10,6 @@ function isPiiTag(tag: string): boolean {
 }
 
 export function DatasetTags({ tags }: DatasetTagsProps) {
-  if (tags.length === 0) return null
   return (
     <p className="flex flex-wrap gap-1.5">
       <span className="sr-only">Tags: {tags.join(', ')}</span>

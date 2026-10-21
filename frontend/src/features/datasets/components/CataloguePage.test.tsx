@@ -12,7 +12,7 @@ import { CataloguePage } from './CataloguePage'
 
 async function renderCatalogue() {
   const queryClient = createTestQueryClient()
-  await queryClient.ensureInfiniteQueryData(datasetsQueryOptions())
+  await queryClient.infiniteQuery(datasetsQueryOptions())
   const view = render(
     <QueryClientProvider client={queryClient}>
       <CataloguePage />
@@ -128,6 +128,7 @@ describe('CataloguePage', () => {
       screen.getByText('AI curation failed. The dataset was saved without tags or a summary.'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/^Tags:/)).not.toBeInTheDocument()
+    expect(screen.queryByText('No tags matched this description.')).not.toBeInTheDocument()
   })
 
   it('shows a request error banner when delete fails', async () => {
@@ -142,6 +143,19 @@ describe('CataloguePage', () => {
 
     expect(await screen.findByText("Dataset '1' not found")).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Customer Transactions' })).toBeInTheDocument()
+  })
+
+  it('says no tags matched when curation succeeded without tags', async () => {
+    server.use(
+      http.get('/datasets', () =>
+        HttpResponse.json([{ ...dataset(10), tags: [], curation_status: 'ok' }]),
+      ),
+    )
+    await renderCatalogue()
+
+    expect(await screen.findByText('No tags matched this description.')).toBeInTheDocument()
+    expect(screen.getByText('A daily feed.')).toBeInTheDocument()
+    expect(screen.queryByText(/curation failed/i)).not.toBeInTheDocument()
   })
 
   it('says the tags were kept when only the summary failed', async () => {

@@ -43,7 +43,12 @@ export function DatasetRow({ dataset, isDeleting, onDelete }: DatasetRowProps) {
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <DatasetTags tags={dataset.tags} />
+          {dataset.tags.length > 0 ? (
+            <DatasetTags tags={dataset.tags} />
+          ) : dataset.curation_status === 'ok' ? (
+            // Curation ran but no catalogue tag fitted. A failed curation explains itself in the banner.
+            <p className="text-sm text-muted-foreground">No tags matched this description.</p>
+          ) : null}
           {dataset.summary ? (
             <p className="text-sm text-muted-foreground">{dataset.summary}</p>
           ) : null}

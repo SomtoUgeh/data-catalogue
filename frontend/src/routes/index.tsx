@@ -1,5 +1,3 @@
-// The only page. The loader fetches the first page of datasets before render; CatalogueSkeleton shows
-// while it loads and CatalogueError if it fails.
 import { createFileRoute } from '@tanstack/react-router'
 
 import { CatalogueError } from '@/features/datasets/components/CatalogueError'
@@ -8,7 +6,10 @@ import { CatalogueSkeleton } from '@/features/datasets/components/CatalogueSkele
 import { datasetsQueryOptions } from '@/features/datasets/api/queryOptions'
 
 export const Route = createFileRoute('/')({
-  loader: ({ context }) => context.queryClient.ensureInfiniteQueryData(datasetsQueryOptions()),
+  // 'static' reuses any cached pages, so returning to the page does not wait on a refetch.
+  // useSuspenseInfiniteQuery still refetches in the background once the data is stale.
+  loader: ({ context }) =>
+    context.queryClient.infiniteQuery({ ...datasetsQueryOptions(), staleTime: 'static' }),
   pendingComponent: CatalogueSkeleton,
   errorComponent: CatalogueError,
   component: CataloguePage,

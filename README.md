@@ -44,6 +44,14 @@ handlers that follow the same OpenAPI contract.
 - **Paging.** `limit` defaults to 50. To get the next page, pass the last id of the current page as
   `before`. A page shorter than `limit` is the last one. Pages use the primary key (keyset pagination), so a
   deep page costs the same as the first, and an insert or delete never shifts or repeats rows.
+- **Tags.** Clef chooses tags from the vocabulary in `backend/src/app/curation/tags.py`. When none
+  reaches the 0.55 threshold, the summary request also asks Llama for up to three short lowercase tags of
+  its own. If `tags` is still empty, the UI shows "No tags matched this description." A failed curation
+  is shown as a warning instead.
+- **Structured output.** Clef answers one yes/no question per tag with a probability. Llama replies in
+  Workers AI JSON mode: `response_format` carries the JSON schema of a Pydantic model (`summary`, plus
+  `tags` when they are requested). JSON mode is not guaranteed, so Pydantic validates each reply. A reply
+  that fails saves the dataset as `failed`, and Clef's tags are kept.
 - **Input.** `name` and `description` are required; `owner` is optional. Limits: `name` and `owner` 200
   characters, `description` 2000.
 - **Rate limit.** On Cloudflare, `POST` and `DELETE` return `429` with `Retry-After: 60` after 10 requests in
@@ -68,45 +76,6 @@ The frontend client is generated from the OpenAPI document. After a backend cont
 cd frontend && npm run gen:api
 ```
 
-## Structure
-
-```
-backend/
-  src/app/                  the FastAPI application; runtime-neutral, no Cloudflare imports
-    main.py                 create_app and the local wiring (in-memory store, keyword curator)
-    logs.py                 one-line JSON log events
-    schemas.py              request, response, and error models
-    api/                    HTTP layer
-      datasets.py           routes for /datasets, with OpenAPI operation ids
-      dependencies.py       get_service, the dependency the Worker overrides
-      errors.py             400, 404, 405, and 500 handlers; every error is {"error": ...}
-    services/datasets.py    business logic: list a page, create with curation, delete
-    repositories/           DatasetStore protocol, in-memory store, D1 store, seed data
-    curation/
-      base.py               Curator protocol, CurationResult, IncompleteCurationError
-      tags.py               the tag vocabulary: id, meaning for Clef, keywords for the mock
-      prompts.py            summary instructions for the chat model
-      workers_ai.py         Clef picks tags, Llama writes the summary; deadline, retry, AI Gateway, log event
-      keyword.py            rule-based mock for local runs and tests
-  src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI, limits writes, logs to the console
-  tests/                    API, curator, and error-shape tests; payloads.py holds shared bodies
-  migrations/               D1 schema and seed rows
-  scripts/export_openapi.py prints the OpenAPI document for the frontend generator
-  wrangler.jsonc            Worker, D1, Workers AI, AI Gateway, rate limit, observability, and asset config
-frontend/src/
-  features/datasets/
-    api/generated/          typed client, zod schemas, and query keys from openapi.json
-    api/                    query options, mutations, error parsing, form schema
-    components/             catalogue page, add form, paged list, row, tags, banners
-    mocks/                  MSW handlers and store for tests, with the same paging as the API
-  components/               form field, status banner, shadcn ui primitives
-  lib/                      class-name helper
-  routes/                   TanStack Router file routes
-  test/                     test setup and render helpers
-```
-
-`src/` is the folder pywrangler bundles into the Worker, so tests, scripts, and migrations never ship.
-
 ## How it fits together
 
 **Adding a dataset**, from the click to the saved row:
@@ -122,7 +91,8 @@ frontend/src/
    `app/schemas.py`; invalid input goes to `app/api/errors.py` and comes back as a `400`.
 5. `app/services/datasets.py` asks the curator for tags and a summary:
    `app/curation/workers_ai.py` calls Clef, then Llama, using `tags.py` and `prompts.py`, and logs one
-   `curation` event. If curation fails, the service keeps any tags and marks the dataset `failed`.
+   `curation` event. If Clef finds no tag that fits, Llama suggests the tags as well as the summary. If
+   curation fails, the service keeps any tags and marks the dataset `failed`.
 6. The service saves through the store (`app/repositories/d1.py` on Cloudflare) and returns the dataset
    with a `201`.
 7. Back in the browser, the mutation invalidates the list query, so the list refetches and the new
@@ -163,7 +133,7 @@ stored.
 | `AI` | Workers AI binding | Runs both models |
 | `WRITE_LIMITER` | Rate limit binding | 10 writes per minute per IP |
 | `CLASSIFIER_MODEL` | var | Chooses the tags (`@cf/cloudflare/clef-flash`) |
-| `SUMMARY_MODEL` | var | Writes the summary (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) |
+| `SUMMARY_MODEL` | var | Writes the summary, and the tags when Clef finds none (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) |
 | `AI_GATEWAY_ID` | var | AI Gateway that logs model calls (`default`). Remove it to call Workers AI directly. |
 
 To try another model without editing the file, add `--var SUMMARY_MODEL:<model>` to `pywrangler dev`.
@@ -179,48 +149,6 @@ cd backend
 uv run pywrangler d1 migrations apply data-catalogue --local
 uv run pywrangler dev
 ```
-
-## Design notes
-
-- **One app, two wirings.** `create_app` takes a `DatasetService`. `main.py` wires the in-memory store and
-  keyword curator for local runs. `worker.py` overrides the service dependency per request with the D1 store
-  and Workers AI curator from the Worker environment. Routes, service, and schemas are shared.
-- **Layers.** Routes only handle HTTP. `DatasetService` holds the logic. The store protocol is the only
-  thing that touches storage, so swapping memory for D1 is one class.
-- **Validation.** Pydantic rejects missing or blank `name` and `description`, and fields over their length
-  limit. The limits keep the AI prompts, and so cost and latency, bounded. FastAPI returns `422` by default,
-  so one handler changes this to `400` with a field list, and `CatalogueApi` removes the unused `422` from
-  the OpenAPI document.
-- **Abuse limit.** The API has no sign-in, so the Worker limits `POST` and `DELETE` to 10 per minute per
-  client IP with Cloudflare's rate limiting binding (`WRITE_LIMITER` in `wrangler.jsonc`). It is plain ASGI
-  middleware in `worker.py`: Starlette's `@app.middleware` runs the app in a separate task, which raises
-  proxy errors in the Python Workers runtime.
-- **AI curation.** Two Workers AI calls. Clef (`@cf/cloudflare/clef-flash`), a decision model, answers one
-  yes/no question per tag in `tags.py` with a probability; tags at or above 0.55 are kept, highest first,
-  at most five. So tags never leave the vocabulary. Llama 3.3 70B then writes the summary from the name,
-  description, and chosen tags, in JSON mode, validated with Pydantic. The prompt in `prompts.py` asks for
-  one sentence of at most 25 words and gives two worked examples from the sample data. A longer reply is
-  rejected.
-- **AI failures.** Curation never blocks the save; the dataset is stored with `curation_status: "failed"`.
-  - One 15-second deadline covers both calls, so a slow model cannot hold the request longer.
-  - A temporary Workers AI error (3007 timeout, 3008 aborted, 3040 out of capacity) is retried once within
-    that deadline. Other errors, such as 5007 no such model, fail at once.
-  - If Clef fails, the dataset is saved without tags or a summary. If only the summary fails (error, bad
-    JSON, or over 25 words), Clef's tags are kept and the summary is empty.
-  - The UI shows which of the two happened, on the form and on the row.
-  - When a call times out, the app stops waiting, but Workers AI may still finish (and bill) the request.
-- **Keyword mock.** A table maps keywords to domain tags. PII is added for personal identifiers, or for a
-  `name` field in a dataset about people, so "product name" does not count. Cadence comes from words like
-  "daily". The summary is built from the field list in the description's first sentence.
-- **Frontend state.** TanStack Query owns the list as an infinite query: one page of 50, then "Load more
-  datasets" fetches the next. Add and delete mutations invalidate it, so the page updates without a reload,
-  and a new dataset appears at the top because the list is newest first. Components never call `fetch`
-  directly; they use the generated client, and `unwrapResponse` turns every failure into an `ApiError`
-  with the server's message.
-- **Form.** TanStack Form validates with the generated Zod schema plus form messages. A field shows its
-  error after the user leaves it or submits, not while they first type. On a failed submit, focus moves to
-  the first invalid field, including fields the server rejects. Request errors and curation warnings go into
-  live regions that are always in the DOM, so screen readers announce them.
 
 ## Observability and debugging
 
@@ -238,14 +166,15 @@ Events (`app/logs.py`) are one JSON object per line. Workers Logs keeps each lin
 
 | Event | Level | Fields |
 | --- | --- | --- |
-| `curation` | info if `outcome` is `ok`, else warning | `curation_id`, `dataset`, both models, `outcome` (`ok`, `incomplete`, `failed`), `error`, `classify_ms`, `summary_ms`, `*_retried_after`, `scores` (Clef's top 8, including tags under the threshold), `tags`, `summary_words` |
+| `curation` | info if `outcome` is `ok`, else warning | `curation_id`, `dataset`, both models, `outcome` (`ok`, `incomplete`, `failed`), `error`, `classify_ms`, `summary_ms`, `*_retried_after`, `scores` (Clef's top 8, including tags under the threshold), `tags`, `tag_source` (`clef` or `summary_model`), `summary_words` |
 | `curation_incomplete` / `curation_failed` | warning / error | `dataset`, `tags`, `traceback` |
 | `unhandled_error` | error | `method`, `path`, `traceback` |
 
 To find out why a dataset got the tags or summary it did:
 
 1. In Workers Logs, filter on `event = curation` and the dataset name.
-2. Read `outcome`, `error`, and `scores`. `scores` shows how close the missing tags came to 0.55.
+2. Read `outcome`, `error`, `scores`, and `tag_source`. `scores` shows how close the missing tags came to
+   0.55. `tag_source` is `summary_model` when Llama chose the tags because none reached it.
 3. Copy `curation_id`. In AI Gateway logs, filter on metadata `curation_id` to see the exact prompts and
    model replies for both steps (`step` is `classify` or `summary`).
 
