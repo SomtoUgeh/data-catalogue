@@ -26,7 +26,7 @@ curator that needs no API key. The Vite dev server forwards `/datasets` to the A
 ## Test
 
 ```bash
-cd backend && uv run pytest
+cd backend && uv run pytest && uv run pyright -p ../pyrightconfig.json
 cd frontend && npm test && npm run typecheck && npm run lint
 ```
 
@@ -70,7 +70,6 @@ backend/
       prompts.py            summary instructions for the chat model
       workers_ai.py         Clef picks tags, Llama writes the summary
       keyword.py            rule-based mock for local runs and tests
-    cloudflare.py           Python/JavaScript value conversion for Cloudflare bindings
   src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI to the app
   migrations/               D1 schema and seed rows
   scripts/export_openapi.py prints the OpenAPI document for the frontend generator

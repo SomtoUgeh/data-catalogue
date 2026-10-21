@@ -3,7 +3,6 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from app.cloudflare import to_js, to_py
 from app.curation.base import CurationResult
 from app.curation.prompts import SUMMARY_INSTRUCTIONS, summary_prompt
 from app.curation.tags import ALL_TAGS, MAX_TAGS
@@ -47,7 +46,7 @@ class WorkersAiCurator:
                 for tag in ALL_TAGS
             },
         }
-        reply = to_py(await self._ai.run(self._classifier_model, to_js(request)))
+        reply = await self._ai.run(self._classifier_model, request)
         return tags_from_answers(reply["answers"])
 
     async def _summarise(self, dataset: DatasetCreate, tags: list[str]) -> str:
@@ -59,7 +58,7 @@ class WorkersAiCurator:
             "response_format": {"type": "json_schema", "json_schema": Summary.model_json_schema()},
             "temperature": 0,
         }
-        reply = to_py(await self._ai.run(self._summary_model, to_js(request)))
+        reply = await self._ai.run(self._summary_model, request)
         response = reply["response"]
         if isinstance(response, str):  # some models return the JSON object as text
             response = json.loads(response)

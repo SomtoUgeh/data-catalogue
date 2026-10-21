@@ -20,8 +20,8 @@ def create_app(service: DatasetService | None = None) -> FastAPI:
     app = FastAPI(title="Data Catalogue API", version="1.0.0")
     app.state.dataset_service = service
     app.include_router(datasets_router)
-    app.add_exception_handler(RequestValidationError, validation_error_handler)
-    app.add_exception_handler(DatasetNotFoundError, not_found_handler)
+    app.exception_handler(RequestValidationError)(validation_error_handler)
+    app.exception_handler(DatasetNotFoundError)(not_found_handler)
     return app
 
 
@@ -31,7 +31,7 @@ async def validation_error_handler(_request: Request, exc: RequestValidationErro
     return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=body.model_dump())
 
 
-async def not_found_handler(_request: Request, exc: Exception) -> JSONResponse:
+async def not_found_handler(_request: Request, exc: DatasetNotFoundError) -> JSONResponse:
     body = ErrorResponse(error=f"Dataset '{exc}' not found")
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content=body.model_dump())
 

@@ -1,21 +1,24 @@
 import json
 from typing import Any
 
-from app.cloudflare import to_py
 from app.schemas import Dataset, DatasetFields
 
 COLUMNS = "id, name, owner, description, tags, summary, curation_status"
 
 
 class D1DatasetStore:
-    """Stores datasets in a Cloudflare D1 (SQLite) table. See migrations/ for the schema and seed rows."""
+    """Stores datasets in a Cloudflare D1 (SQLite) table. See migrations/ for the schema and seed rows.
+
+    `db` is the D1 binding from the Worker env. The workers SDK converts query arguments and results
+    between Python and JavaScript, so rows arrive as plain dicts.
+    """
 
     def __init__(self, db: Any) -> None:
         self._db = db
 
     async def list(self) -> list[Dataset]:
         result = await self._db.prepare(f"SELECT {COLUMNS} FROM datasets ORDER BY id").all()
-        return [_to_dataset(row) for row in to_py(result.results)]
+        return [_to_dataset(row) for row in result["results"]]
 
     async def add(self, fields: DatasetFields) -> Dataset:
         row = await (
@@ -33,12 +36,12 @@ class D1DatasetStore:
             )
             .first()
         )
-        return _to_dataset(to_py(row))
+        return _to_dataset(row)
 
     async def delete(self, dataset_id: str) -> Dataset | None:
         statement = self._db.prepare(f"DELETE FROM datasets WHERE id = ? RETURNING {COLUMNS}")
         row = await statement.bind(dataset_id).first()
-        return None if row is None else _to_dataset(to_py(row))
+        return None if row is None else _to_dataset(row)
 
 
 def _to_dataset(row: dict[str, Any]) -> Dataset:
