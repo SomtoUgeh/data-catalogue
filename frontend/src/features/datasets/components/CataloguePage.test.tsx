@@ -12,7 +12,7 @@ import { CataloguePage } from './CataloguePage'
 
 async function renderCatalogue() {
   const queryClient = createTestQueryClient()
-  await queryClient.ensureInfiniteQueryData(datasetsQueryOptions())
+  await queryClient.infiniteQuery(datasetsQueryOptions())
   const view = render(
     <QueryClientProvider client={queryClient}>
       <CataloguePage />
