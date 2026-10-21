@@ -24,7 +24,6 @@ TAG_CRITERIA: list[tuple[str, str]] = [
     ("employees", "People who work at the firm, as the data subject"),
     ("customers", "Customers or clients as the data subject"),
     ("products", "Products or SKUs as the data subject"),
-    ("trades", "Executed trades as the data subject"),
     (
         "PII",
         "The description names people-identifying fields such as customer ID, name, or email — not merely a product name",

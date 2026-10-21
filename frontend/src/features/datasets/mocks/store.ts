@@ -2,7 +2,7 @@ import type { Dataset, DatasetCreate } from '../api/generated/types.gen'
 import { PLACEHOLDER_SUMMARY, PLACEHOLDER_TAGS, SEEDED_DATASETS } from './fixtures'
 
 const KEYWORD_RULES: Array<[string, string[]]> = [
-  ['trading', ['trade', 'trades', 'trading', 'counterparty', 'notional', 'instrument']],
+  ['trading', ['trade', 'trading', 'counterparty', 'notional', 'instrument']],
   ['finance', ['finance', 'currency', 'amount', 'notional', 'transaction', 'transactions']],
   ['settlements', ['settlement', 'settlements', 'settle']],
   ['transactions', ['transaction', 'transactions']],

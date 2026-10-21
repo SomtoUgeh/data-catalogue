@@ -6,7 +6,7 @@ from app.schemas import CurationResult, DatasetCreate
 # First matching keyword in the name or description assigns the tag.
 # Order is the tag order we want reviewers to see.
 KEYWORD_RULES: list[tuple[str, tuple[str, ...]]] = [
-    ("trading", ("trade", "trades", "trading", "counterparty", "notional", "instrument")),
+    ("trading", ("trade", "trading", "counterparty", "notional", "instrument")),
     ("finance", ("finance", "currency", "amount", "notional", "transaction", "transactions")),
     ("settlements", ("settlement", "settlements", "settle")),
     ("transactions", ("transaction", "transactions")),

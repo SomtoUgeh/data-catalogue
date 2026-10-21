@@ -7,10 +7,10 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
 from app.config import DEFAULT_CLASSIFIER_MODEL, DEFAULT_LLM_MODEL, Settings, get_settings
-from app.curation.classifier import ClassifierCurator, tags_from_answers
+from app.curation.classifier import TAG_CRITERIA, ClassifierCurator, tags_from_answers
 from app.curation.factory import get_curator
 from app.curation.hybrid import HybridCurator
-from app.curation.keyword import KeywordCurator
+from app.curation.keyword import KEYWORD_RULES, KeywordCurator
 from app.curation.llm import LlmCurator
 from app.curation.tags import normalize_tags
 from app.main import create_app
@@ -193,16 +193,25 @@ def test_safe_error_redacts_bearer_tokens() -> None:
     assert "FakeError" in message
 
 
+def test_tag_set_does_not_include_trades() -> None:
+    assert "trades" not in {tag for tag, _meaning in TAG_CRITERIA}
+    assert "trades" not in {tag for tag, _keywords in KEYWORD_RULES}
+    assert all("trades" not in keywords for _tag, keywords in KEYWORD_RULES)
+
+
 def test_tags_from_answers_keeps_high_noul_scores() -> None:
     answers = {
         "trading": {"type": "noul", "noul": 0.92},
+        "trades": {"type": "noul", "noul": 0.99},
         "finance": {"type": "noul", "noul": 0.81},
         "settlements": {"type": "noul", "noul": 0.77},
         "daily": {"type": "noul", "noul": 0.88},
         "PII": {"type": "noul", "noul": 0.04},
         "HR": {"type": "noul", "noul": 0.01},
     }
-    assert tags_from_answers(answers) == ["trading", "daily", "finance", "settlements"]
+    tags = tags_from_answers(answers)
+    assert tags == ["trading", "daily", "finance", "settlements"]
+    assert "trades" not in tags
 
 
 def test_tags_from_answers_pads_to_three_when_scores_are_low() -> None:
