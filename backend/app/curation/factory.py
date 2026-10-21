@@ -11,10 +11,10 @@ def get_curator(settings: Settings | None = None) -> HybridCurator:
 
 
 def get_worker_curator(settings: Settings | None = None, ai_binding=None) -> HybridCurator:
-    from app.curation.http_llm import HttpLlmCurator
+    from app.curation.llm import LlmCurator
 
     resolved = settings or get_settings()
     return HybridCurator(
         ClassifierCurator(resolved, ai_binding=ai_binding),
-        HttpLlmCurator(resolved, ai_binding=ai_binding),
+        LlmCurator(resolved),
     )

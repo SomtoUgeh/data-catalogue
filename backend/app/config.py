@@ -41,11 +41,8 @@ class Settings(BaseSettings):
         return bool(self.cf_account_id.strip() and self.llm_provider_api_key.strip())
 
     @property
-    def workers_ai_chat_url(self) -> str:
-        return (
-            f"https://api.cloudflare.com/client/v4/accounts/"
-            f"{self.cf_account_id.strip()}/ai/v1/chat/completions"
-        )
+    def workers_ai_base_url(self) -> str:
+        return f"https://api.cloudflare.com/client/v4/accounts/{self.cf_account_id.strip()}/ai/v1"
 
     def workers_ai_model(self) -> str:
         model = self.llm_model.strip()

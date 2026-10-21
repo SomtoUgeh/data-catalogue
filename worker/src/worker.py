@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
+
 from fastapi import Request
 from fastapi.responses import Response
 from workers import asgi
@@ -40,7 +44,14 @@ async def healthz() -> dict[str, bool]:
 @app.get("/__worker_probe", include_in_schema=False)
 async def worker_probe() -> dict[str, str]:
     report: dict[str, str] = {}
-    for name in ("fastapi", "pydantic", "httpx", "pydantic_ai", "httpx2"):
+    for name in (
+        "fastapi",
+        "pydantic",
+        "httpx",
+        "httpx2",
+        "pydantic_ai",
+        "pydantic_ai.models.openai",
+    ):
         try:
             __import__(name)
             report[name] = "ok"

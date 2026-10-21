@@ -21,6 +21,7 @@
   ],
   "vars": {
     "LLM_MODEL": "workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    "CLASSIFIER_MODEL": "typesafe/jev"
+    "CLASSIFIER_MODEL": "typesafe/jev",
+    "PYDANTIC_AI_NO_BANNER": "1"
   }
 }

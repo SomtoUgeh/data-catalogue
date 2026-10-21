@@ -1,10 +1,17 @@
 import json
+from types import SimpleNamespace
 
 import httpx
 import pytest
-from app.config import DEFAULT_CLASSIFIER_MODEL, DEFAULT_LLM_MODEL, Settings, get_settings
+from app.config import (
+    DEFAULT_CLASSIFIER_MODEL,
+    DEFAULT_LLM_MODEL,
+    Settings,
+    get_settings,
+    settings_from_env,
+)
 from app.curation.classifier import ClassifierCurator, tags_from_answers
-from app.curation.factory import get_curator
+from app.curation.factory import get_curator, get_worker_curator
 from app.curation.hybrid import HybridCurator
 from app.curation.llm import LlmCurator
 from app.curation.outcome import PLACEHOLDER_SUMMARY, compose_curation
@@ -264,4 +271,39 @@ def test_llm_summarise_accepts_valid_testmodel_output() -> None:
         model=TestModel(custom_output_text=json.dumps({"summary": VALID_OUTPUT["summary"]})),
     )
     summary = curator.summarise(TRADE, ["trading", "finance", "daily"])
+    assert summary.startswith("A daily export")
+
+
+def test_get_worker_curator_uses_the_same_llm_summarizer() -> None:
+    curator = get_worker_curator(Settings(cf_account_id="acct", llm_provider_api_key="token"))
+    assert isinstance(curator, HybridCurator)
+    assert isinstance(curator.summarizer, LlmCurator)
+    assert isinstance(curator.classifier, ClassifierCurator)
+
+
+def test_settings_from_env_reads_binding_names_only() -> None:
+    settings = settings_from_env(
+        SimpleNamespace(
+            CF_ACCOUNT_ID="acct",
+            CF_AI_GATEWAY_ID="gw",
+            LLM_PROVIDER_API_KEY="token",
+            LLM_MODEL="",
+            CLASSIFIER_MODEL="",
+        )
+    )
+    assert settings.llm_ready is True
+    assert settings.gateway_base_url.endswith("/compat")
+    assert settings.workers_ai_model() == "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    assert settings.workers_ai_base_url.endswith("/ai/v1")
+
+
+def test_llm_summarise_works_without_a_gateway_id() -> None:
+    settings = Settings(cf_account_id="acct", llm_provider_api_key="token")
+    assert settings.llm_ready is False
+    assert settings.workers_ai_ready is True
+    curator = LlmCurator(
+        settings,
+        model=TestModel(custom_output_text=json.dumps({"summary": VALID_OUTPUT["summary"]})),
+    )
+    summary = curator.summarise(TRADE, ["trading"])
     assert summary.startswith("A daily export")
