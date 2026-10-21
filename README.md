@@ -65,11 +65,16 @@ A live run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`
 ## Tests
 
 ```bash
+cd backend && python3 -m pip install -r requirements-dev.txt
 cd backend && python3 -m pytest
+cd backend && ruff check app tests && ruff format --check app tests
+cd backend && mypy app
 cd frontend && npm test
+cd frontend && npm run typecheck
+cd frontend && npm run lint
 ```
 
-Backend tests stub Jev and Llama at the HTTP boundary. Frontend tests use MSW. The running app does not.
+Backend tests stub Jev and Llama at the HTTP boundary. Frontend tests use MSW. The running app does not. Pull requests run the same checks in GitHub Actions.
 
 ## Architecture
 
