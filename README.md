@@ -44,6 +44,9 @@ handlers that follow the same OpenAPI contract.
 - **Paging.** `limit` defaults to 50. To get the next page, pass the last id of the current page as
   `before`. A page shorter than `limit` is the last one. Pages use the primary key (keyset pagination), so a
   deep page costs the same as the first, and an insert or delete never shifts or repeats rows.
+- **Tags.** Tags come only from the vocabulary in `backend/src/app/curation/tags.py`, so `tags` is empty
+  when nothing fits the description. The UI then shows "No tags matched this description." A failed
+  curation is shown as a warning instead.
 - **Input.** `name` and `description` are required; `owner` is optional. Limits: `name` and `owner` 200
   characters, `description` 2000.
 - **Rate limit.** On Cloudflare, `POST` and `DELETE` return `429` with `Retry-After: 60` after 10 requests in
