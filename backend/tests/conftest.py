@@ -1,26 +1,22 @@
 import pytest
-from app.curation.base import Curator
-from app.curation.outcome import CurationOk, CurationOutcome
-from app.main import create_app
-from app.repositories.dataset_repository import DatasetRepository
-from app.schemas import DatasetCreate
 from fastapi.testclient import TestClient
 
+from app.curation.keyword import KeywordCurator
+from app.main import create_app
+from app.repositories.memory import InMemoryDatasetStore
+from app.repositories.seed import SEED_DATASETS
+from app.services.dataset_service import DatasetService
 
-class StubCurator(Curator):
-    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
-        return CurationOk(
-            tags=["trading", "finance", "settlements", "daily"],
-            summary="A daily export of confirmed trades covering counterparties and settlements.",
-        )
+TRADE_CONFIRMATIONS = {
+    "name": "Trade Confirmations",
+    "owner": "Middle Office",
+    "description": (
+        "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date."
+    ),
+}
 
 
 @pytest.fixture
-def repository() -> DatasetRepository:
-    return DatasetRepository()
-
-
-@pytest.fixture
-def client(repository: DatasetRepository) -> TestClient:
-    app = create_app(repository=repository, curator=StubCurator())
-    return TestClient(app)
+def client() -> TestClient:
+    service = DatasetService(InMemoryDatasetStore(SEED_DATASETS), KeywordCurator())
+    return TestClient(create_app(service))

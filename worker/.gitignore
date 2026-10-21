@@ -1,6 +1,0 @@
-.dev.vars
-.venv/
-.venv-workers/
-.wrangler/
-python_modules/
-pylock.toml

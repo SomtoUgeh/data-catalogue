@@ -1,0 +1,25 @@
+{
+  "name": "data-catalogue",
+  "main": "src/worker.py",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["python_workers"],
+  "observability": { "enabled": true },
+
+  // The built SPA is served by the platform. Only API paths reach the Python Worker.
+  "assets": {
+    "directory": "../frontend/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/datasets", "/datasets/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "data-catalogue",
+      "database_id": "f519fba1-1422-4d7e-bdae-e7ef42fc81ad",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ai": { "binding": "AI" },
+  "vars": { "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast" }
+}

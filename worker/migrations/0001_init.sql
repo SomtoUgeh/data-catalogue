@@ -1,9 +1,0 @@
-CREATE TABLE IF NOT EXISTS datasets (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  owner TEXT NOT NULL,
-  description TEXT NOT NULL,
-  tags TEXT NOT NULL,
-  summary TEXT NOT NULL,
-  curation_status TEXT NOT NULL
-);

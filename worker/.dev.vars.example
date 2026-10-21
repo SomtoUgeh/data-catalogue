@@ -1,6 +1,0 @@
-# Local wrangler / pywrangler only. Copy to .dev.vars and fill in.
-# Never commit .dev.vars.
-LLM_PROVIDER_API_KEY=
-CF_ACCOUNT_ID=
-CF_AI_GATEWAY_ID=
-CF_AI_GATEWAY_TOKEN=
