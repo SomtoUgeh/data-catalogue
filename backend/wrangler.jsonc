@@ -5,11 +5,11 @@
   "compatibility_flags": ["python_workers"],
   "observability": { "enabled": true },
 
-  // The built SPA is served by the platform. Only API paths reach the Python Worker.
+  // The built SPA is served by the platform. Only the API and its OpenAPI docs reach the Python Worker.
   "assets": {
     "directory": "../frontend/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/datasets", "/datasets/*"]
+    "run_worker_first": ["/datasets", "/datasets/*", "/docs", "/openapi.json"]
   },
 
   "d1_databases": [

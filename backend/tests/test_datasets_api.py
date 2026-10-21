@@ -44,23 +44,26 @@ def test_delete_unknown_id_returns_404(client: TestClient) -> None:
     response = client.delete("/datasets/999")
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Dataset '999' not found"}
+    assert response.json() == {"error": "Dataset '999' not found"}
 
 
 @pytest.mark.parametrize(
-    ("payload", "message"),
+    ("payload", "invalid_fields"),
     [
-        ({"owner": "Middle Office", "description": "Daily trades."}, "name is required"),
-        ({"name": "Trades", "owner": "Middle Office"}, "description is required"),
-        ({"name": "   ", "description": "Daily trades."}, "name is required"),
-        ({"name": "", "description": ""}, "name is required; description is required"),
+        ({"owner": "Middle Office", "description": "Daily trades."}, ["name"]),
+        ({"name": "Trades", "owner": "Middle Office"}, ["description"]),
+        ({"name": "   ", "description": "Daily trades."}, ["name"]),
+        ({"name": "", "description": ""}, ["name", "description"]),
     ],
 )
 def test_post_with_missing_or_blank_fields_returns_400(
-    client: TestClient, payload: dict[str, str], message: str
+    client: TestClient, payload: dict[str, str], invalid_fields: list[str]
 ) -> None:
     response = client.post("/datasets", json=payload)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": message}
+    assert response.json() == {
+        "error": "Validation failed",
+        "fields": [{"field": field, "message": f"{field} is required"} for field in invalid_fields],
+    }
     assert len(client.get("/datasets").json()) == 3

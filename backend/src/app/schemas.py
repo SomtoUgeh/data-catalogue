@@ -31,3 +31,20 @@ class Dataset(DatasetFields):
     """A stored dataset, as returned by every endpoint."""
 
     id: str
+
+
+class ErrorResponse(BaseModel):
+    """Body of every error response, for example a 404."""
+
+    error: str
+
+
+class FieldError(BaseModel):
+    field: str
+    message: str
+
+
+class ValidationErrorResponse(ErrorResponse):
+    """Body of a 400. `fields` names each invalid request field so the UI can show errors inline."""
+
+    fields: list[FieldError]
