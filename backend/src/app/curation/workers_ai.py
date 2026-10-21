@@ -30,7 +30,7 @@ class WorkersAiCurator:
         self._summary_model = summary_model
 
     async def curate(self, dataset: DatasetCreate) -> CurationResult:
-        tags = await self._classify(dataset)
+        tags = await self._classify(dataset)  # may be empty; the summary is still worth having
         summary = await self._summarise(dataset, tags)
         return CurationResult(tags=tags, summary=summary)
 

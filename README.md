@@ -59,18 +59,23 @@ cd frontend && npm run gen:api
 
 ```
 backend/
-  src/app/
-    main.py                 app setup, 400 and 404 handlers, local wiring
+  src/app/                  the FastAPI application; runtime-neutral, no Cloudflare imports
+    main.py                 create_app and the local wiring (in-memory store, keyword curator)
     schemas.py              request, response, and error models
-    routers/datasets.py     HTTP layer: routes, status codes, OpenAPI operation ids
-    services/               business logic: create with curation, delete
+    api/                    HTTP layer
+      datasets.py           routes for /datasets, with OpenAPI operation ids
+      dependencies.py       get_service, the dependency the Worker overrides
+      errors.py             400, 404, and 500 handlers; every error is {"error": ...}
+    services/datasets.py    business logic: create with curation, delete
     repositories/           DatasetStore protocol, in-memory store, D1 store, seed data
     curation/
+      base.py               Curator protocol and CurationResult
       tags.py               the tag vocabulary: id, meaning for Clef, keywords for the mock
       prompts.py            summary instructions for the chat model
       workers_ai.py         Clef picks tags, Llama writes the summary
       keyword.py            rule-based mock for local runs and tests
   src/worker.py             Cloudflare Worker entry: binds D1 and Workers AI to the app
+  tests/                    API, curator, and error-shape tests; payloads.py holds shared bodies
   migrations/               D1 schema and seed rows
   scripts/export_openapi.py prints the OpenAPI document for the frontend generator
   wrangler.jsonc            Worker, D1, Workers AI, and static asset config
@@ -81,8 +86,12 @@ frontend/src/
     components/             catalogue page, add form, list, row, tags, banners
     mocks/                  MSW handlers for tests
   components/               form field, status banner, shadcn ui primitives
+  lib/                      class-name helper and API base URL
   routes/                   TanStack Router file routes
+  test/                     test setup and render helpers
 ```
+
+`src/` is the folder pywrangler bundles into the Worker, so tests, scripts, and migrations never ship.
 
 ## Deployment
 

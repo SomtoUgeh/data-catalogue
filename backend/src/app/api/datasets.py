@@ -1,18 +1,11 @@
-from typing import Annotated
+"""HTTP routes for /datasets. Each route maps a request to one service call; errors are handled in errors.py."""
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, status
 
+from app.api.dependencies import Service
 from app.schemas import Dataset, DatasetCreate, ErrorResponse, ValidationErrorResponse
-from app.services.dataset_service import DatasetService
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
-
-
-def get_service(request: Request) -> DatasetService:
-    return request.app.state.dataset_service
-
-
-Service = Annotated[DatasetService, Depends(get_service)]
 
 # operation_id names the functions in the generated TypeScript client (frontend: npm run gen:api).
 

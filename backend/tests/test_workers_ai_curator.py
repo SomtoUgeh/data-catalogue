@@ -6,8 +6,8 @@ from app.curation.workers_ai import WorkersAiCurator, tags_from_answers
 from app.main import create_app
 from app.repositories.memory import InMemoryDatasetStore
 from app.repositories.seed import SEED_DATASETS
-from app.services.dataset_service import DatasetService
-from tests.conftest import TRADE_CONFIRMATIONS
+from app.services.datasets import DatasetService
+from tests.payloads import TRADE_CONFIRMATIONS
 
 CLEF_ANSWERS = {
     "trading": {"noul": 0.97},
@@ -71,3 +71,14 @@ def test_malformed_summary_still_saves_the_dataset_as_failed() -> None:
     assert created["summary"] == ""
     assert created["curation_status"] == "failed"
     assert created in client.get("/datasets").json()
+
+
+def test_no_matching_tags_still_keeps_the_summary() -> None:
+    unsure = {tag: {"noul": 0.2} for tag in CLEF_ANSWERS}
+    ai = FakeAi({"clef": {"answers": unsure}, "llama": {"response": {"summary": SUMMARY}}})
+
+    created = client_with(ai).post("/datasets", json=TRADE_CONFIRMATIONS).json()
+
+    assert created["tags"] == []
+    assert created["summary"] == SUMMARY
+    assert created["curation_status"] == "ok"

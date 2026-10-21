@@ -7,11 +7,11 @@ request as `env`.
 from fastapi import Request
 from workers import asgi
 
+from app.api.dependencies import get_service
 from app.curation.workers_ai import WorkersAiCurator
 from app.main import create_app
 from app.repositories.d1 import D1DatasetStore
-from app.routers.datasets import get_service
-from app.services.dataset_service import DatasetService
+from app.services.datasets import DatasetService
 
 app = create_app()
 

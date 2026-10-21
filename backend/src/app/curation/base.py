@@ -8,7 +8,9 @@ Tag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_
 
 
 class CurationResult(BaseModel):
-    tags: list[Tag] = Field(min_length=1, max_length=6)
+    """Tags may be empty when nothing in the vocabulary fits; the summary is always required."""
+
+    tags: list[Tag] = Field(max_length=6)
     summary: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 
 

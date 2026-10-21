@@ -30,7 +30,7 @@ def curate(name: str, description: str) -> tuple[list[str], str]:
             ["inventory", "operations", "warehouse"],
         ),
         ("Device Sales", "Smartphone sales by region.", ["sales"]),
-        ("Misc", "Assorted notes.", ["uncategorised"]),
+        ("Misc", "Assorted notes.", []),
     ],
 )
 def test_tags_follow_the_keyword_rules(name: str, description: str, expected_tags: list[str]) -> None:

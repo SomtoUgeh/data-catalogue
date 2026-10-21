@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 class DatasetNotFoundError(Exception):
-    pass
+    def __init__(self, dataset_id: str) -> None:
+        super().__init__(f"Dataset '{dataset_id}' not found")
+        self.dataset_id = dataset_id
 
 
 class DatasetService:
