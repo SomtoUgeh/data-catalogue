@@ -33,7 +33,12 @@ def test_openapi_names_response_models(client: TestClient) -> None:
     assert "Dataset" in schemas
     assert "DatasetCreate" in schemas
     assert "ErrorResponse" in schemas
+    assert "FieldError" in schemas
+    assert "ValidationErrorResponse" in schemas
     assert schemas["ErrorResponse"]["title"] == "ErrorResponse"
+    assert schemas["ValidationErrorResponse"]["title"] == "ValidationErrorResponse"
+    assert schemas["DatasetCreate"]["properties"]["name"]["minLength"] == 1
+    assert schemas["DatasetCreate"]["properties"]["description"]["minLength"] == 1
 
 
 def test_get_datasets_returns_seeded_entries(client: TestClient) -> None:
@@ -72,13 +77,18 @@ def test_delete_dataset_returns_200_and_removes_entry(client: TestClient) -> Non
     assert len(remaining.json()) == 2
 
 
+def _assert_field_error(body: dict, field: str) -> None:
+    assert body["error"] == "Validation failed"
+    assert any(item["field"] == field and item["message"] == f"{field} is required" for item in body["fields"])
+
+
 def test_post_missing_name_returns_400(client: TestClient) -> None:
     response = client.post(
         "/datasets",
         json={"owner": "Middle Office", "description": "Daily export of trades."},
     )
     assert response.status_code == 400
-    assert "name" in response.json()["error"]
+    _assert_field_error(response.json(), "name")
 
 
 def test_post_missing_description_returns_400(client: TestClient) -> None:
@@ -87,7 +97,7 @@ def test_post_missing_description_returns_400(client: TestClient) -> None:
         json={"name": "Trade Confirmations", "owner": "Middle Office"},
     )
     assert response.status_code == 400
-    assert "description" in response.json()["error"]
+    _assert_field_error(response.json(), "description")
 
 
 def test_post_blank_name_returns_400(client: TestClient) -> None:
@@ -96,7 +106,7 @@ def test_post_blank_name_returns_400(client: TestClient) -> None:
         json={"name": "   ", "owner": "Middle Office", "description": "Daily export of trades."},
     )
     assert response.status_code == 400
-    assert "name" in response.json()["error"]
+    _assert_field_error(response.json(), "name")
 
 
 def test_post_blank_description_returns_400(client: TestClient) -> None:
@@ -105,7 +115,7 @@ def test_post_blank_description_returns_400(client: TestClient) -> None:
         json={"name": "Trade Confirmations", "owner": "Middle Office", "description": ""},
     )
     assert response.status_code == 400
-    assert "description" in response.json()["error"]
+    _assert_field_error(response.json(), "description")
 
 
 def test_delete_unknown_id_returns_404(client: TestClient) -> None:

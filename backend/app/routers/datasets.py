@@ -1,18 +1,28 @@
 from fastapi import APIRouter, Request, status
 
-from app.schemas import Dataset, DatasetCreate, ErrorResponse
+from app.schemas import Dataset, DatasetCreate, ErrorResponse, ValidationErrorResponse
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 VALIDATION_ERROR = {
     400: {
-        "model": ErrorResponse,
+        "model": ValidationErrorResponse,
         "description": "Name or description is missing or blank.",
         "content": {
             "application/json": {
                 "examples": {
-                    "missingName": {"value": {"error": "name is required"}},
-                    "blankName": {"value": {"error": "name is required and cannot be blank"}},
+                    "missingName": {
+                        "value": {
+                            "error": "Validation failed",
+                            "fields": [{"field": "name", "message": "name is required"}],
+                        }
+                    },
+                    "blankName": {
+                        "value": {
+                            "error": "Validation failed",
+                            "fields": [{"field": "name", "message": "name is required"}],
+                        }
+                    },
                 }
             }
         },

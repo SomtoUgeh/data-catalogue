@@ -23,7 +23,10 @@ TRADE_CONFIRMATIONS_DATASET = {
     "curation_status": "ok",
 }
 
-VALIDATION_ERROR_EXAMPLE = {"error": "name is required"}
+VALIDATION_ERROR_EXAMPLE = {
+    "error": "Validation failed",
+    "fields": [{"field": "name", "message": "name is required"}],
+}
 NOT_FOUND_ERROR_EXAMPLE = {"error": "Dataset with id 'missing' was not found."}
 
 
@@ -32,26 +35,16 @@ class DatasetCreate(BaseModel):
 
     model_config = ConfigDict(
         title="DatasetCreate",
+        str_strip_whitespace=True,
         json_schema_extra={"examples": [TRADE_CONFIRMATIONS_CREATE]},
     )
 
-    name: str = Field(examples=["Trade Confirmations"])
+    name: str = Field(min_length=1, examples=["Trade Confirmations"])
     owner: str = Field(default="", examples=["Middle Office"])
     description: str = Field(
+        min_length=1,
         examples=[TRADE_CONFIRMATIONS_CREATE["description"]],
     )
-
-    @field_validator("name", "description")
-    @classmethod
-    def required_not_blank(cls, value: str, info) -> str:
-        if value is None or not str(value).strip():
-            raise ValueError(f"{info.field_name} is required and cannot be blank")
-        return str(value).strip()
-
-    @field_validator("owner")
-    @classmethod
-    def strip_owner(cls, value: str | None) -> str:
-        return (value or "").strip()
 
 
 class CurationResult(BaseModel):
@@ -107,14 +100,33 @@ class Dataset(BaseModel):
     )
 
 
+class FieldError(BaseModel):
+    """One invalid request field."""
+
+    model_config = ConfigDict(title="FieldError")
+
+    field: str = Field(examples=["name"])
+    message: str = Field(examples=["name is required"])
+
+
+class ValidationErrorResponse(BaseModel):
+    """400 body. `error` stays a string; `fields` names each invalid input."""
+
+    model_config = ConfigDict(
+        title="ValidationErrorResponse",
+        json_schema_extra={"examples": [VALIDATION_ERROR_EXAMPLE]},
+    )
+
+    error: str = Field(examples=["Validation failed"])
+    fields: list[FieldError]
+
+
 class ErrorResponse(BaseModel):
-    """API error body. Always `{ \"error\": \"...\" }` — never FastAPI's default 422 shape."""
+    """Non-validation error body, e.g. 404. Always includes `{ \"error\": \"...\" }`."""
 
     model_config = ConfigDict(
         title="ErrorResponse",
-        json_schema_extra={
-            "examples": [VALIDATION_ERROR_EXAMPLE, NOT_FOUND_ERROR_EXAMPLE],
-        },
+        json_schema_extra={"examples": [NOT_FOUND_ERROR_EXAMPLE]},
     )
 
-    error: str = Field(examples=["name is required"])
+    error: str = Field(examples=["Dataset with id 'missing' was not found."])

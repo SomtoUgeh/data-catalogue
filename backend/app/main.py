@@ -7,24 +7,31 @@ from app.curation.base import Curator
 from app.curation.factory import get_curator
 from app.repositories.dataset_repository import DatasetRepository
 from app.routers.datasets import router as datasets_router
-from app.schemas import ErrorResponse
+from app.schemas import ErrorResponse, FieldError, ValidationErrorResponse
 from app.services.dataset_service import DatasetNotFoundError, DatasetService
 
 
-def _validation_message(exc: RequestValidationError) -> str:
-    parts: list[str] = []
+def _field_message(err: dict) -> str:
+    field = next((str(loc) for loc in reversed(err["loc"]) if loc != "body"), "")
+    msg = err.get("msg", "is invalid")
+    if msg.startswith("Value error, "):
+        msg = msg.removeprefix("Value error, ")
+    err_type = err.get("type")
+    if field and err_type in {"missing", "string_too_short", "string_type"}:
+        return f"{field} is required"
+    if field and not msg.startswith(field):
+        return f"{field} {msg}"
+    return msg
+
+
+def _validation_fields(exc: RequestValidationError) -> list[FieldError]:
+    fields: list[FieldError] = []
     for err in exc.errors():
         field = next((str(loc) for loc in reversed(err["loc"]) if loc != "body"), "")
-        msg = err.get("msg", "is invalid")
-        if msg.startswith("Value error, "):
-            msg = msg.removeprefix("Value error, ")
-        if err.get("type") == "missing" and field:
-            parts.append(f"{field} is required")
-        elif field and not msg.startswith(field):
-            parts.append(f"{field} {msg}")
-        else:
-            parts.append(msg)
-    return "; ".join(parts) or "Invalid request body."
+        if not field:
+            continue
+        fields.append(FieldError(field=field, message=_field_message(err)))
+    return fields
 
 
 def create_app(
@@ -37,7 +44,8 @@ def create_app(
         description=(
             "Register datasets, attach curator tags and a one-sentence summary, "
             "then list or delete them. Validation failures are 400 with "
-            "`{ \"error\": \"...\" }`, not FastAPI's default 422."
+            "`{ \"error\": \"Validation failed\", \"fields\": [...] }`, "
+            "not FastAPI's default 422."
         ),
     )
     app.add_middleware(
@@ -57,7 +65,10 @@ def create_app(
     async def validation_exception_handler(_request, exc: RequestValidationError):
         return JSONResponse(
             status_code=400,
-            content=ErrorResponse(error=_validation_message(exc)).model_dump(),
+            content=ValidationErrorResponse(
+                error="Validation failed",
+                fields=_validation_fields(exc),
+            ).model_dump(),
         )
 
     @app.exception_handler(DatasetNotFoundError)
