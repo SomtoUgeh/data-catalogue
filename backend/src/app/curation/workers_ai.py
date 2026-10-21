@@ -11,7 +11,7 @@ from typing import Any
 from pydantic import BaseModel, field_validator
 
 from app.curation.base import CurationResult, IncompleteCurationError
-from app.curation.prompts import MAX_SUMMARY_WORDS, SUMMARY_INSTRUCTIONS, summary_prompt
+from app.curation.prompts import MAX_SUGGESTED_TAGS, MAX_SUMMARY_WORDS, SUMMARY_INSTRUCTIONS, summary_prompt
 from app.curation.tags import ALL_TAGS, MAX_TAGS
 from app.logs import describe, log_event
 from app.schemas import DatasetCreate
@@ -31,6 +31,10 @@ TRANSIENT_ERROR = re.compile(r"\b(?:3007|3008|3040)\b")
 # The curation log records this many of Clef's highest scores, including tags under the threshold.
 LOGGED_SCORES = 8
 
+# A tag suggested by the chat model is kept only if it is this short.
+MAX_SUGGESTED_TAG_WORDS = 2
+MAX_SUGGESTED_TAG_LENGTH = 30
+
 
 class Summary(BaseModel):
     """The JSON object the summary model must return."""
@@ -45,11 +49,34 @@ class Summary(BaseModel):
         return value
 
 
+class SummaryWithTags(Summary):
+    """Requested instead of Summary when Clef chose no tags, so the chat model suggests some of its own.
+
+    The JSON schema sent to the model stays a plain string array, because extra schema rules make JSON mode
+    more likely to fail. The validator then normalises the tags and drops any that are too long, rather than
+    rejecting the reply and losing the summary.
+    """
+
+    tags: list[str]
+
+    @field_validator("tags")
+    @classmethod
+    def short_lowercase_tags(cls, value: list[str]) -> list[str]:
+        normalised = (" ".join(tag.lower().split()) for tag in value)
+        kept = [
+            tag
+            for tag in normalised
+            if tag and len(tag) <= MAX_SUGGESTED_TAG_LENGTH and len(tag.split()) <= MAX_SUGGESTED_TAG_WORDS
+        ]
+        return list(dict.fromkeys(kept))[:MAX_SUGGESTED_TAGS]
+
+
 class WorkersAiCurator:
     """Two Workers AI calls: Clef picks tags from the closed vocabulary, then a chat model writes the summary.
 
-    Clef is a decision model. It answers one yes/no question per tag with a probability, so tags never leave
-    the vocabulary. The summary request uses JSON mode and is validated with Pydantic.
+    Clef is a decision model. It answers one yes/no question per tag with a probability, so its tags never
+    leave the vocabulary. The summary request uses Workers AI JSON mode and is validated with Pydantic. When
+    Clef finds no tag that fits, the same request also asks the chat model for up to three tags of its own.
 
     If Clef fails, curate raises and the dataset is saved without tags. If only the summary fails, it raises
     IncompleteCurationError with Clef's tags. Each call logs one "curation" event with timings, scores, and
@@ -87,7 +114,7 @@ class WorkersAiCurator:
                 event["error"] = describe(exc)
                 raise
             try:
-                summary = await self._summarise(dataset, tags, deadline, event)
+                summary, tags = await self._summarise(dataset, tags, deadline, event)
             except Exception as exc:
                 event.update(outcome="incomplete", error=describe(exc))
                 raise IncompleteCurationError(tags) from exc
@@ -115,20 +142,29 @@ class WorkersAiCurator:
         event.update(scores=dict(scores[:LOGGED_SCORES]), tags=tags)
         return tags
 
-    async def _summarise(self, dataset: DatasetCreate, tags: list[str], deadline: float, event: dict[str, Any]) -> str:
+    async def _summarise(
+        self, dataset: DatasetCreate, tags: list[str], deadline: float, event: dict[str, Any]
+    ) -> tuple[str, list[str]]:
+        """Returns the summary and the dataset's tags: Clef's, or the chat model's when Clef found none."""
+        reply_model = Summary if tags else SummaryWithTags
         request = {
             "messages": [
                 {"role": "system", "content": SUMMARY_INSTRUCTIONS},
                 {"role": "user", "content": summary_prompt(dataset.name, dataset.description, tags)},
             ],
-            "response_format": {"type": "json_schema", "json_schema": Summary.model_json_schema()},
+            "response_format": {"type": "json_schema", "json_schema": reply_model.model_json_schema()},
             "temperature": 0,
         }
         reply = await self._run("summary", self._summary_model, request, deadline, event)
         response = reply["response"]
         if isinstance(response, str):  # some models return the JSON object as text
             response = json.loads(response)
-        return Summary.model_validate(response).summary
+        reply = reply_model.model_validate(response)
+        if isinstance(reply, SummaryWithTags):
+            event.update(tag_source="summary_model", tags=reply.tags)
+            return reply.summary, reply.tags
+        event["tag_source"] = "clef"
+        return reply.summary, tags
 
     async def _run(self, step: str, model: str, request: dict[str, Any], deadline: float, event: dict[str, Any]) -> Any:
         """Calls the model within the deadline, retrying once on a transient Workers AI error."""

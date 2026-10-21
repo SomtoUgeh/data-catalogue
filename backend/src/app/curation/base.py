@@ -1,7 +1,8 @@
 """The curation interface DatasetService depends on.
 
 keyword.py implements it without AI (local runs and tests); workers_ai.py implements it with Clef and
-Llama on Cloudflare. Both read the tag vocabulary from tags.py.
+Llama on Cloudflare. Both choose tags from the vocabulary in tags.py; when none fits, workers_ai.py
+asks Llama to suggest some.
 """
 
 from typing import Annotated, Protocol
@@ -14,7 +15,7 @@ Tag = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_
 
 
 class CurationResult(BaseModel):
-    """Tags may be empty when nothing in the vocabulary fits; the summary is always required."""
+    """Tags may be empty when none fit the description; the summary is always required."""
 
     tags: list[Tag] = Field(max_length=6)
     summary: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
