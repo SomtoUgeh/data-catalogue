@@ -24,6 +24,14 @@ The UI is at [http://localhost:3000](http://localhost:3000). The API is at [http
 
 Copy `backend/.env.example` only if you want a live LLM run. Leave it unset for the default keyword mock.
 
+Frontend-only (no FastAPI process): set `VITE_API_MOCKING=true` so the MSW worker answers with the same shapes and status codes.
+
+Regenerate the typed client after a backend contract change:
+
+```bash
+cd frontend && npm run gen:api
+```
+
 ## Environment
 
 Names only — never commit values for tokens.
@@ -36,8 +44,9 @@ Names only — never commit values for tokens.
 | `LLM_PROVIDER_API_KEY` | Cloudflare API token with Workers AI permission (`Authorization: Bearer`) |
 | `LLM_MODEL` | Defaults to `workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
 | `CURATOR` | `mock` (force keyword), `llm` (use gateway if configured), `fail` (demo fallback) |
-| `API_BASE_URL` | FastAPI origin used by TanStack Start server functions. Defaults to `http://127.0.0.1:8000` |
-| `VITE_API_BASE_URL` | Browser fallback for the same origin |
+| `API_BASE_URL` | FastAPI origin used by the typed client on the Start server. Defaults to `http://127.0.0.1:8000` |
+| `VITE_API_BASE_URL` | Browser origin for the same client |
+| `VITE_API_MOCKING` | `true` starts the MSW worker for frontend-only demos |
 
 A live LLM run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. The validation pass uses the mock.
 
@@ -54,33 +63,36 @@ cd frontend && npm test
 .
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                 # app factory, 400/404 handlers
-│   │   ├── config.py               # pydantic-settings
-│   │   ├── schemas.py
-│   │   ├── routers/datasets.py     # HTTP only
+│   │   ├── main.py                 # app factory, 400/404 handlers, OpenAPI title
+│   │   ├── config.py
+│   │   ├── schemas.py              # named Dataset / DatasetCreate / ErrorResponse + examples
+│   │   ├── routers/datasets.py
 │   │   ├── services/dataset_service.py
 │   │   ├── repositories/dataset_repository.py
 │   │   └── curation/
-│   │       ├── base.py             # Curator + CurationError
-│   │       ├── keyword.py          # default mock
-│   │       ├── llm.py              # PydanticAI + Cloudflare AI Gateway
-│   │       ├── tags.py
-│   │       └── factory.py
-│   └── tests/
+│   └── scripts/export_openapi.py   # dumps FastAPI's OpenAPI JSON
 └── frontend/
+    ├── openapi.json                # committed contract snapshot
+    ├── openapi-ts.config.ts
     └── src/
-        ├── api/datasets.ts         # FastAPI HTTP client
-        ├── api/datasetFns.ts       # Start server functions
-        ├── components/             # form, list, row, page
-        └── routes/index.tsx        # loader, pending, error, invalidate
+        ├── lib/                    # api base URL, cn()
+        ├── components/             # FormField, StatusBanner, PageShell
+        ├── components/ui/          # shadcn primitives only
+        ├── routes/                 # file routes; loader ensureQueryData
+        └── features/datasets/
+            ├── api/                # typed client, queryOptions, mutations
+            ├── api/generated/      # hey-api output (committed)
+            ├── components/
+            └── mocks/              # MSW handlers + fixtures
 ```
 
-Request path:
+Data flow:
 
-1. The `/` route loader calls `fetchDatasets()` (a Start server function).
-2. That function uses `src/api/datasets.ts` to `GET /datasets` on FastAPI.
-3. FastAPI: router → service → repository. On create, the service asks a `Curator` for tags and a summary.
-4. After add/delete the page calls `router.invalidate()`, which re-runs the loader. No full reload.
+1. `getRouter()` creates one `QueryClient` per router and puts it on router context. `setupRouterSsrQueryIntegration` makes that cache the app's SSR/global server state.
+2. The `/` loader calls `context.queryClient.ensureQueryData(datasetsQueryOptions())`. That factory wraps the generated `listDatasets` SDK call.
+3. `CataloguePage` reads the same query with `useSuspenseQuery`. Pending and error UI stay on the route.
+4. Create and delete are `useMutation` hooks. On success they `invalidateQueries` the datasets key. Form values live in TanStack Form; pending and request errors come from the mutation.
+5. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK. There is no hand-written `fetch`.
 
 ## Design decisions
 
@@ -98,9 +110,13 @@ Request path:
 
 **Curation fallback.** If the agent raises (`UnexpectedModelBehavior`, timeout, HTTP error, or anything else), the dataset still saves with placeholder tags/summary and `curation_status: "failed"`. The form and the row show that to the user. `CURATOR=fail` forces this path for a demo.
 
-**Server functions as the loader boundary.** Start server functions keep the FastAPI URL on the server for the first paint. Mutations go through the same `datasets.ts` service so `CataloguePage` stays a regular component and Vitest can mock the module. Both paths share one HTTP client.
+**@hey-api/openapi-ts, not orval.** The review asked for one well-known generator. Hey API's `@tanstack/react-query` plugin emits `listDatasetsOptions` / mutation helpers that match the Query wiring we already want. Orval's MSW plugin would have generated handlers too; we wrote those by hand so they can stay aligned with FastAPI's 400 body, seeded rows, and keyword-like tags. The generated folder is committed; run `npm run gen:api` after a schema change.
 
-**TanStack Form.** Field-level `onSubmit` validators for empty name/description, `isSubmitting` for the button, and server 400 messages mapped back onto the field.
+**MSW for tests and optional browser demos.** Vitest uses `setupServer` against the same handlers as the opt-in worker. No `vi.mock` of an API module. Handlers return the same JSON shapes and 200/201/400/404 codes as FastAPI.
+
+**TanStack Form.** Field-level `onSubmit` validators for empty name/description. The create mutation owns pending (`Curating…`) and request errors. Server 400 messages are mapped back onto the matching field.
+
+**UI.** Tailwind CSS v4 + shadcn/ui only — no leftover plain CSS classes. Neutral canvas with one blue accent. Inter, then the system sans stack. Desktop is a two-column internal-tool layout: sticky form card on the left, dataset list on the right; they stack on small screens. Tags are Badges (PII uses the warning token). Loader pending uses Skeleton rows; an empty catalogue is a quiet card. Request errors and the curation fallback are non-blocking Alerts. Focus rings stay visible; motion respects `prefers-reduced-motion`. Dark tokens follow `prefers-color-scheme` only.
 
 ## What I would do next
 

@@ -6,4 +6,5 @@ TanStack Start app for the data catalogue. Setup, env vars, and architecture liv
 npm install
 npm run dev
 npm test
+npm run gen:api   # export FastAPI OpenAPI + regenerate the typed client
 ```
