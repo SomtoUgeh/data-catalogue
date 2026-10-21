@@ -9,7 +9,8 @@ import {
 } from './store'
 
 function apiUrl(path: string): string {
-  return `${getApiBaseUrl()}${path}`
+  const base = getApiBaseUrl()
+  return base ? `${base}${path}` : path
 }
 
 function missingOrBlank(value: unknown): 'missing' | 'blank' | null {

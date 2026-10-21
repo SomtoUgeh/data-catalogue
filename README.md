@@ -44,8 +44,7 @@ Names only — never commit values for tokens.
 | `LLM_PROVIDER_API_KEY` | Cloudflare API token with Workers AI permission (`Authorization: Bearer`) |
 | `LLM_MODEL` | Defaults to `workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
 | `CURATOR` | `mock` (force keyword), `llm` (use gateway if configured), `fail` (demo fallback) |
-| `API_BASE_URL` | FastAPI origin used by the typed client on the Start server. Defaults to `http://127.0.0.1:8000` |
-| `VITE_API_BASE_URL` | Browser origin for the same client |
+| `VITE_API_BASE_URL` | Optional. Leave unset so the browser calls same-origin `/datasets` and Vite proxies to FastAPI. Set only to hit FastAPI directly. |
 | `VITE_API_MOCKING` | `true` starts the MSW worker for frontend-only demos |
 
 A live LLM run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. The validation pass uses the mock.
@@ -72,9 +71,13 @@ cd frontend && npm test
 │   │   └── curation/
 │   └── scripts/export_openapi.py   # dumps FastAPI's OpenAPI JSON
 └── frontend/
+    ├── index.html                  # Vite SPA entry
+    ├── vite.config.ts              # Router plugin + /datasets → :8000 proxy
     ├── openapi.json                # committed contract snapshot
     ├── openapi-ts.config.ts
     └── src/
+        ├── main.tsx                # QueryClientProvider > RouterProvider
+        ├── router.tsx              # createRouter({ routeTree, context })
         ├── lib/                    # api base URL, cn()
         ├── components/             # FormField, StatusBanner, PageShell
         ├── components/ui/          # shadcn primitives only
@@ -88,11 +91,12 @@ cd frontend && npm test
 
 Data flow:
 
-1. `getRouter()` creates one `QueryClient` per router and puts it on router context. `setupRouterSsrQueryIntegration` makes that cache the app's SSR/global server state.
-2. The `/` loader calls `context.queryClient.ensureQueryData(datasetsQueryOptions())`. That factory wraps the generated `listDatasets` SDK call.
-3. `CataloguePage` reads the same query with `useSuspenseQuery`. Pending and error UI stay on the route.
-4. Create and delete are `useMutation` hooks. On success they `invalidateQueries` the datasets key. Form values live in TanStack Form; pending and request errors come from the mutation.
-5. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK. There is no hand-written `fetch`.
+1. `main.tsx` mounts `QueryClientProvider` around `RouterProvider`. `createRouter` receives one `QueryClient` on context, with `defaultPreload: 'intent'` and `defaultPreloadStaleTime: 0` so Query owns caching. There is no SSR.
+2. Vite proxies `/datasets` to FastAPI on `:8000`. The typed client uses a same-origin base (`''`) so the browser talks to Vite; FastAPI still allows the Vite origin in CORS for direct calls.
+3. The `/` loader calls `context.queryClient.ensureQueryData(datasetsQueryOptions())`. That factory wraps the generated `listDatasets` SDK call.
+4. `CataloguePage` reads the same query with `useSuspenseQuery`. Pending and error UI stay on the route (`pendingComponent` / `errorComponent`).
+5. Create and delete are `useMutation` hooks. On success they `invalidateQueries` the datasets key. Form values live in TanStack Form; pending and request errors come from the mutation.
+6. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK. There is no hand-written `fetch`. MSW mirrors the same contract in Vitest and, when `VITE_API_MOCKING=true`, in the browser.
 
 ## Design decisions
 

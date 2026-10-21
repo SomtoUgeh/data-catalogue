@@ -1,6 +1,6 @@
 # Frontend
 
-TanStack Start app for the data catalogue. Setup, env vars, and architecture live in the [root README](../README.md).
+Vite + React SPA for the data catalogue. Setup, env vars, and architecture live in the [root README](../README.md).
 
 ```bash
 npm install
