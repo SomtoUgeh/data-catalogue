@@ -7,7 +7,7 @@ import { resetDatasetStore } from '@/features/datasets/mocks/store'
 import '@testing-library/jest-dom/vitest'
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
+  server.listen({ onUnhandledFrame: 'error' })
 })
 
 afterEach(() => {
