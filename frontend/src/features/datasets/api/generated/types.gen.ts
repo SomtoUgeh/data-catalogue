@@ -65,13 +65,29 @@ export type DatasetCreate = {
 /**
  * ErrorResponse
  *
- * API error body. Always `{ "error": "..." }` — never FastAPI's default 422 shape.
+ * Non-validation error body, e.g. 404. Always includes `{ "error": "..." }`.
  */
 export type ErrorResponse = {
     /**
      * Error
      */
     error: string;
+};
+
+/**
+ * FieldError
+ *
+ * One invalid request field.
+ */
+export type FieldError = {
+    /**
+     * Field
+     */
+    field: string;
+    /**
+     * Message
+     */
+    message: string;
 };
 
 /**
@@ -112,6 +128,22 @@ export type ValidationError = {
     };
 };
 
+/**
+ * ValidationErrorResponse
+ *
+ * 400 body. `error` stays a string; `fields` names each invalid input.
+ */
+export type ValidationErrorResponse = {
+    /**
+     * Error
+     */
+    error: string;
+    /**
+     * Fields
+     */
+    fields: Array<FieldError>;
+};
+
 export type ListDatasetsData = {
     body?: never;
     path?: never;
@@ -141,7 +173,7 @@ export type CreateDatasetErrors = {
     /**
      * Name or description is missing or blank.
      */
-    400: ErrorResponse;
+    400: ValidationErrorResponse;
     /**
      * Validation Error
      */

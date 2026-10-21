@@ -5,11 +5,15 @@ export default defineConfig({
   output: 'src/features/datasets/api/generated',
   plugins: [
     '@hey-api/typescript',
-    '@hey-api/sdk',
+    {
+      name: '@hey-api/sdk',
+      validator: { response: true },
+    },
     {
       name: '@hey-api/client-fetch',
       runtimeConfigPath: './src/features/datasets/api/hey-api.ts',
     },
     '@tanstack/react-query',
+    'zod',
   ],
 })

@@ -3,6 +3,7 @@
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
 import type { CreateDatasetData, CreateDatasetErrors, CreateDatasetResponses, DeleteDatasetData, DeleteDatasetErrors, DeleteDatasetResponses, ListDatasetsData, ListDatasetsResponses } from './types.gen';
+import { zCreateDatasetResponse, zDeleteDatasetResponse, zListDatasetsResponse } from './zod.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -21,12 +22,17 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * List datasets
  */
-export const listDatasets = <ThrowOnError extends boolean = false>(options?: Options<ListDatasetsData, ThrowOnError>): RequestResult<ListDatasetsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListDatasetsResponses, unknown, ThrowOnError>({ url: '/datasets', ...options });
+export const listDatasets = <ThrowOnError extends boolean = false>(options?: Options<ListDatasetsData, ThrowOnError>): RequestResult<ListDatasetsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListDatasetsResponses, unknown, ThrowOnError>({
+    responseValidator: async (data) => await zListDatasetsResponse.parseAsync(data),
+    url: '/datasets',
+    ...options
+});
 
 /**
  * Register a dataset
  */
 export const createDataset = <ThrowOnError extends boolean = false>(options: Options<CreateDatasetData, ThrowOnError>): RequestResult<CreateDatasetResponses, CreateDatasetErrors, ThrowOnError> => (options.client ?? client).post<CreateDatasetResponses, CreateDatasetErrors, ThrowOnError>({
+    responseValidator: async (data) => await zCreateDatasetResponse.parseAsync(data),
     url: '/datasets',
     ...options,
     headers: {
@@ -38,4 +44,8 @@ export const createDataset = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Delete a dataset
  */
-export const deleteDataset = <ThrowOnError extends boolean = false>(options: Options<DeleteDatasetData, ThrowOnError>): RequestResult<DeleteDatasetResponses, DeleteDatasetErrors, ThrowOnError> => (options.client ?? client).delete<DeleteDatasetResponses, DeleteDatasetErrors, ThrowOnError>({ url: '/datasets/{dataset_id}', ...options });
+export const deleteDataset = <ThrowOnError extends boolean = false>(options: Options<DeleteDatasetData, ThrowOnError>): RequestResult<DeleteDatasetResponses, DeleteDatasetErrors, ThrowOnError> => (options.client ?? client).delete<DeleteDatasetResponses, DeleteDatasetErrors, ThrowOnError>({
+    responseValidator: async (data) => await zDeleteDatasetResponse.parseAsync(data),
+    url: '/datasets/{dataset_id}',
+    ...options
+});

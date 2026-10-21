@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Data Catalogue",
-    "description": "Register datasets, attach curator tags and a one-sentence summary, then list or delete them. Validation failures are 400 with `{ \"error\": \"...\" }`, not FastAPI's default 422.",
+    "description": "Register datasets, attach curator tags and a one-sentence summary, then list or delete them. Validation failures are 400 with `{ \"error\": \"Validation failed\", \"fields\": [...] }`, not FastAPI's default 422.",
     "version": "1.0.0"
   },
   "paths": {
@@ -62,17 +62,29 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
                 },
                 "examples": {
                   "missingName": {
                     "value": {
-                      "error": "name is required"
+                      "error": "Validation failed",
+                      "fields": [
+                        {
+                          "field": "name",
+                          "message": "name is required"
+                        }
+                      ]
                     }
                   },
                   "blankName": {
                     "value": {
-                      "error": "name is required and cannot be blank"
+                      "error": "Validation failed",
+                      "fields": [
+                        {
+                          "field": "name",
+                          "message": "name is required"
+                        }
+                      ]
                     }
                   }
                 }
@@ -248,6 +260,7 @@
         "properties": {
           "name": {
             "type": "string",
+            "minLength": 1,
             "title": "Name",
             "examples": [
               "Trade Confirmations"
@@ -263,6 +276,7 @@
           },
           "description": {
             "type": "string",
+            "minLength": 1,
             "title": "Description",
             "examples": [
               "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date."
@@ -290,7 +304,7 @@
             "type": "string",
             "title": "Error",
             "examples": [
-              "name is required"
+              "Dataset with id 'missing' was not found."
             ]
           }
         },
@@ -299,15 +313,37 @@
           "error"
         ],
         "title": "ErrorResponse",
-        "description": "API error body. Always `{ \"error\": \"...\" }` \u2014 never FastAPI's default 422 shape.",
+        "description": "Non-validation error body, e.g. 404. Always includes `{ \"error\": \"...\" }`.",
         "examples": [
-          {
-            "error": "name is required"
-          },
           {
             "error": "Dataset with id 'missing' was not found."
           }
         ]
+      },
+      "FieldError": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "examples": [
+              "name"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "examples": [
+              "name is required"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "FieldError",
+        "description": "One invalid request field."
       },
       "HTTPValidationError": {
         "properties": {
@@ -361,6 +397,42 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "examples": [
+              "Validation failed"
+            ]
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error",
+          "fields"
+        ],
+        "title": "ValidationErrorResponse",
+        "description": "400 body. `error` stays a string; `fields` names each invalid input.",
+        "examples": [
+          {
+            "error": "Validation failed",
+            "fields": [
+              {
+                "field": "name",
+                "message": "name is required"
+              }
+            ]
+          }
+        ]
       }
     }
   }
