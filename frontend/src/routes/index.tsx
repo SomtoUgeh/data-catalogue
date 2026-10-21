@@ -1,43 +1,13 @@
-import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
-import { fetchDatasets } from '../api/datasetFns'
-import { CataloguePage } from '../components/CataloguePage'
+import { CatalogueError } from '@/features/datasets/components/CatalogueError'
+import { CataloguePage } from '@/features/datasets/components/CataloguePage'
+import { CatalogueSkeleton } from '@/features/datasets/components/CatalogueSkeleton'
+import { datasetsQueryOptions } from '@/features/datasets/api/queryOptions'
 
 export const Route = createFileRoute('/')({
-  loader: () => fetchDatasets(),
-  pendingComponent: CataloguePending,
+  loader: ({ context }) => context.queryClient.ensureQueryData(datasetsQueryOptions()),
+  pendingComponent: CatalogueSkeleton,
   errorComponent: CatalogueError,
-  component: Home,
+  component: CataloguePage,
 })
-
-function Home() {
-  const datasets = Route.useLoaderData()
-  const router = useRouter()
-
-  return (
-    <CataloguePage
-      datasets={datasets}
-      onChanged={() => router.invalidate()}
-    />
-  )
-}
-
-function CataloguePending() {
-  return (
-    <main>
-      <h1>Data catalogue</h1>
-      <p aria-live="polite">Loading datasets…</p>
-    </main>
-  )
-}
-
-function CatalogueError({ error }: { error: Error }) {
-  return (
-    <main>
-      <h1>Data catalogue</h1>
-      <p role="alert" aria-live="assertive">
-        {error.message || 'Could not load datasets.'}
-      </p>
-    </main>
-  )
-}
