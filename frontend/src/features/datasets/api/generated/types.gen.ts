@@ -45,7 +45,7 @@ export type Dataset = {
 /**
  * DatasetCreate
  *
- * Body for registering a dataset. Name and description are required.
+ * Body for registering a dataset. Name, owner, and description are required.
  */
 export type DatasetCreate = {
     /**
@@ -55,7 +55,7 @@ export type DatasetCreate = {
     /**
      * Owner
      */
-    owner?: string;
+    owner: string;
     /**
      * Description
      */

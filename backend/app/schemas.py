@@ -31,7 +31,7 @@ NOT_FOUND_ERROR_EXAMPLE = {"error": "Dataset with id 'missing' was not found."}
 
 
 class DatasetCreate(BaseModel):
-    """Body for registering a dataset. Name and description are required."""
+    """Body for registering a dataset. Name, owner, and description are required."""
 
     model_config = ConfigDict(
         title="DatasetCreate",
@@ -40,7 +40,7 @@ class DatasetCreate(BaseModel):
     )
 
     name: str = Field(min_length=1, examples=["Trade Confirmations"])
-    owner: str = Field(default="", examples=["Middle Office"])
+    owner: str = Field(min_length=1, examples=["Middle Office"])
     description: str = Field(
         min_length=1,
         examples=[TRADE_CONFIRMATIONS_CREATE["description"]],

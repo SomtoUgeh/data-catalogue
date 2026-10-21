@@ -53,7 +53,7 @@ export const datasetsHandlers = [
     const created = createStoredDataset(
       {
         name: parsed.data.name,
-        owner: parsed.data.owner ?? '',
+        owner: parsed.data.owner,
         description: parsed.data.description,
       },
       failed,

@@ -270,8 +270,8 @@
           },
           "owner": {
             "type": "string",
+            "minLength": 1,
             "title": "Owner",
-            "default": "",
             "examples": [
               "Middle Office"
             ]
@@ -288,10 +288,11 @@
         "type": "object",
         "required": [
           "name",
+          "owner",
           "description"
         ],
         "title": "DatasetCreate",
-        "description": "Body for registering a dataset. Name and description are required.",
+        "description": "Body for registering a dataset. Name, owner, and description are required.",
         "examples": [
           {
             "description": "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.",

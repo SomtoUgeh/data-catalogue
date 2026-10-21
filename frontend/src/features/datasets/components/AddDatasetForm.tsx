@@ -78,7 +78,7 @@ export function AddDatasetForm() {
           <CardTitle>
             <h2>Add dataset</h2>
           </CardTitle>
-          <CardDescription>Name and description are required. Owner is optional.</CardDescription>
+          <CardDescription>Name, owner, and description are required.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div aria-live="polite" className="flex flex-col gap-2 empty:hidden">
@@ -104,6 +104,7 @@ export function AddDatasetForm() {
               <TextField
                 id="owner"
                 label="Owner"
+                error={firstErrorMessage(field.state.meta.errors)}
                 value={field.state.value}
                 onBlur={field.handleBlur}
                 onChange={field.handleChange}

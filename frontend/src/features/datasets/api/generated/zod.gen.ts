@@ -24,11 +24,11 @@ export const zDataset = z.object({
 /**
  * DatasetCreate
  *
- * Body for registering a dataset. Name and description are required.
+ * Body for registering a dataset. Name, owner, and description are required.
  */
 export const zDatasetCreate = z.object({
     name: z.string().min(1),
-    owner: z.string().optional().default(''),
+    owner: z.string().min(1),
     description: z.string().min(1)
 });
 

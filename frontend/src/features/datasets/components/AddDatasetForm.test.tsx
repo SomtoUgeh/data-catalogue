@@ -9,13 +9,14 @@ import { server } from '../mocks/server'
 import { AddDatasetForm } from './AddDatasetForm'
 
 describe('AddDatasetForm', () => {
-  it('shows inline validation errors when name or description is empty', async () => {
+  it('shows inline validation errors when name, owner, or description is empty', async () => {
     const user = userEvent.setup()
     renderWithQuery(<AddDatasetForm />)
 
     await user.click(screen.getByRole('button', { name: 'Add dataset' }))
 
     expect(await screen.findByText('Name is required')).toBeInTheDocument()
+    expect(screen.getByText('Owner is required')).toBeInTheDocument()
     expect(screen.getByText('Description is required')).toBeInTheDocument()
   })
 
@@ -35,6 +36,7 @@ describe('AddDatasetForm', () => {
     renderWithQuery(<AddDatasetForm />)
 
     await user.type(screen.getByLabelText('Name'), 'Trade Confirmations')
+    await user.type(screen.getByLabelText('Owner'), 'Middle Office')
     await user.type(screen.getByLabelText('Description'), 'Daily export of confirmed trades.')
     await user.click(screen.getByRole('button', { name: 'Add dataset' }))
 
@@ -63,6 +65,7 @@ describe('AddDatasetForm', () => {
     renderWithQuery(<AddDatasetForm />)
 
     await user.type(screen.getByLabelText('Name'), 'Trade Confirmations')
+    await user.type(screen.getByLabelText('Owner'), 'Middle Office')
     await user.type(screen.getByLabelText('Description'), 'Daily export of confirmed trades.')
     await user.click(screen.getByRole('button', { name: 'Add dataset' }))
 

@@ -55,7 +55,9 @@ def test_openapi_names_response_models(client: TestClient) -> None:
     assert schemas["ErrorResponse"]["title"] == "ErrorResponse"
     assert schemas["ValidationErrorResponse"]["title"] == "ValidationErrorResponse"
     assert schemas["DatasetCreate"]["properties"]["name"]["minLength"] == 1
+    assert schemas["DatasetCreate"]["properties"]["owner"]["minLength"] == 1
     assert schemas["DatasetCreate"]["properties"]["description"]["minLength"] == 1
+    assert "owner" in schemas["DatasetCreate"]["required"]
 
 
 def test_get_datasets_returns_seeded_entries(client: TestClient) -> None:
@@ -124,6 +126,31 @@ def test_post_blank_name_returns_400(client: TestClient) -> None:
     )
     assert response.status_code == 400
     _assert_field_error(response.json(), "name")
+
+
+def test_post_missing_owner_returns_400(client: TestClient) -> None:
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "Trade Confirmations",
+            "description": "Daily export of confirmed trades.",
+        },
+    )
+    assert response.status_code == 400
+    _assert_field_error(response.json(), "owner")
+
+
+def test_post_blank_owner_returns_400(client: TestClient) -> None:
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "Trade Confirmations",
+            "owner": "   ",
+            "description": "Daily export of confirmed trades.",
+        },
+    )
+    assert response.status_code == 400
+    _assert_field_error(response.json(), "owner")
 
 
 def test_post_blank_description_returns_400(client: TestClient) -> None:
