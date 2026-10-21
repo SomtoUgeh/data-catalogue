@@ -1,3 +1,9 @@
+"""How a route gets its DatasetService.
+
+Locally get_service returns the service create_app stored on app.state. On Cloudflare, worker.py overrides
+get_service to build a service from that request's env (D1 and Workers AI).
+"""
+
 from typing import Annotated
 
 from fastapi import Depends, Request

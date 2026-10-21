@@ -1,3 +1,5 @@
+"""Rule-based Curator for local runs and tests: no network, same tag vocabulary as the AI."""
+
 import re
 
 from app.curation.base import CurationResult

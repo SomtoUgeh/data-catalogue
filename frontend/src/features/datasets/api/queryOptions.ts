@@ -1,3 +1,4 @@
+// The list query, shared by the route loader, CataloguePage, and the mutations that invalidate it.
 import { infiniteQueryOptions } from '@tanstack/react-query'
 
 import { listDatasetsInfiniteQueryKey } from './generated/@tanstack/react-query.gen'

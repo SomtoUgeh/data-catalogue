@@ -1,3 +1,5 @@
+// Reads the list query the route loader filled, and owns the delete mutation. The add form owns its
+// own create mutation.
 import { useSuspenseInfiniteQuery } from '@tanstack/react-query'
 
 import { PageShell } from '@/components/page-shell'

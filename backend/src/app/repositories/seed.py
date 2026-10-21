@@ -1,3 +1,7 @@
+"""The three sample datasets from the brief. The in-memory store starts with them; D1 gets the same rows
+from migrations/0001_create_datasets.sql.
+"""
+
 from app.schemas import Dataset
 
 SEED_DATASETS = [

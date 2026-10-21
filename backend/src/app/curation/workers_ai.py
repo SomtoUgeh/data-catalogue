@@ -1,3 +1,5 @@
+"""Workers AI Curator, used by the Worker. Prompts live in prompts.py and the tag vocabulary in tags.py."""
+
 import asyncio
 import json
 import logging
