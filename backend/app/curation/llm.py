@@ -1,0 +1,88 @@
+import json
+
+import httpx
+from pydantic_ai import Agent, PromptedOutput
+from pydantic_ai.models import Model
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+
+from app.config import Settings
+from app.curation.base import CurationError, Curator
+from app.schemas import CurationResult, DatasetCreate
+
+CURATION_INSTRUCTIONS = """You curate an internal data catalogue.
+
+Return a JSON object that matches the provided schema.
+
+Pick 3-6 tags from these families only:
+- domain: finance, trading, settlements, transactions, inventory, operations, warehouse, HR
+- data subject: employees, customers, products, trades
+- sensitivity: PII (only if the description names people-identifying fields such as customer ID, name, or email)
+- cadence: daily, weekly, monthly
+
+Rules:
+- lowercase except acronyms PII and HR
+- never emit owner or team tokens (not "middle", "office", "finance team")
+- never emit raw field names (not "NOTIONAL_VALUE", "instrument_type")
+- summary: one sentence, under 25 words, starts with "A ", derived from the description
+
+Examples:
+name: Customer Transactions
+description: Contains daily transaction records including transaction ID, customer ID, amount, currency, and timestamp.
+{"tags": ["finance", "transactions", "PII", "daily"], "summary": "A daily feed of customer transaction records covering amounts, currencies, and timestamps."}
+
+name: Product Inventory
+description: Snapshot of warehouse stock levels by SKU, including product name, quantity on hand, and reorder threshold.
+{"tags": ["inventory", "operations", "warehouse"], "summary": "A warehouse snapshot tracking stock levels and reorder thresholds per product SKU."}
+"""
+
+
+class LlmCurator(Curator):
+    def __init__(
+        self,
+        settings: Settings,
+        model: Model | None = None,
+        http_client=None,
+    ) -> None:
+        self.settings = settings
+        self._model = model
+        self._http_client = http_client
+
+    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
+        if self._model is None and not self.settings.llm_ready:
+            raise CurationError("Cloudflare AI Gateway is not configured")
+
+        prompt = f"name: {payload.name}\ndescription: {payload.description}"
+        result = self._agent(dataset_id).run_sync(prompt)
+        return result.output
+
+    def _agent(self, dataset_id: str) -> Agent[None, CurationResult]:
+        model = self._model or self._gateway_model(dataset_id)
+        return Agent(
+            model,
+            output_type=PromptedOutput(CurationResult),
+            instructions=CURATION_INSTRUCTIONS,
+            retries={"output": 2},
+        )
+
+    def _gateway_model(self, dataset_id: str) -> OpenAIChatModel:
+        headers = {
+            "cf-aig-metadata": json.dumps({"dataset_id": dataset_id or "pending"}),
+        }
+        if self.settings.cf_ai_gateway_token.strip():
+            headers["cf-aig-authorization"] = (
+                f"Bearer {self.settings.cf_ai_gateway_token.strip()}"
+            )
+
+        http_client = self._http_client or httpx.AsyncClient(
+            headers=headers,
+            timeout=self.settings.request_timeout_seconds,
+        )
+        return OpenAIChatModel(
+            self.settings.llm_model,
+            provider=OpenAIProvider(
+                base_url=self.settings.gateway_base_url,
+                api_key=self.settings.llm_provider_api_key,
+                http_client=http_client,
+            ),
+        )
