@@ -31,7 +31,15 @@ def create_app(
     repository: DatasetRepository | None = None,
     curator: Curator | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="Data Catalogue", version="1.0.0")
+    app = FastAPI(
+        title="Data Catalogue",
+        version="1.0.0",
+        description=(
+            "Register datasets, attach curator tags and a one-sentence summary, "
+            "then list or delete them. Validation failures are 400 with "
+            "`{ \"error\": \"...\" }`, not FastAPI's default 422."
+        ),
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],

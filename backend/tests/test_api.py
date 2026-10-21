@@ -27,6 +27,15 @@ class FailingCurator(Curator):
         raise CurationError("forced failure")
 
 
+def test_openapi_names_response_models(client: TestClient) -> None:
+    spec = client.get("/openapi.json").json()
+    schemas = spec["components"]["schemas"]
+    assert "Dataset" in schemas
+    assert "DatasetCreate" in schemas
+    assert "ErrorResponse" in schemas
+    assert schemas["ErrorResponse"]["title"] == "ErrorResponse"
+
+
 def test_get_datasets_returns_seeded_entries(client: TestClient) -> None:
     response = client.get("/datasets")
     assert response.status_code == 200

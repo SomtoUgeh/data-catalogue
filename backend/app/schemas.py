@@ -1,14 +1,45 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.curation.tags import normalize_tags
 
+TRADE_CONFIRMATIONS_CREATE = {
+    "name": "Trade Confirmations",
+    "owner": "Middle Office",
+    "description": (
+        "Daily export of confirmed trades including instrument type, "
+        "counterparty, notional value, and settlement date."
+    ),
+}
+
+TRADE_CONFIRMATIONS_DATASET = {
+    "id": "4",
+    "name": "Trade Confirmations",
+    "owner": "Middle Office",
+    "description": TRADE_CONFIRMATIONS_CREATE["description"],
+    "tags": ["trading", "finance", "settlements", "daily"],
+    "summary": "A daily export of confirmed trades covering counterparties and settlements.",
+    "curation_status": "ok",
+}
+
+VALIDATION_ERROR_EXAMPLE = {"error": "name is required"}
+NOT_FOUND_ERROR_EXAMPLE = {"error": "Dataset with id 'missing' was not found."}
+
 
 class DatasetCreate(BaseModel):
-    name: str
-    owner: str = ""
-    description: str
+    """Body for registering a dataset. Name and description are required."""
+
+    model_config = ConfigDict(
+        title="DatasetCreate",
+        json_schema_extra={"examples": [TRADE_CONFIRMATIONS_CREATE]},
+    )
+
+    name: str = Field(examples=["Trade Confirmations"])
+    owner: str = Field(default="", examples=["Middle Office"])
+    description: str = Field(
+        examples=[TRADE_CONFIRMATIONS_CREATE["description"]],
+    )
 
     @field_validator("name", "description")
     @classmethod
@@ -25,6 +56,8 @@ class DatasetCreate(BaseModel):
 
 class CurationResult(BaseModel):
     """Structured curator output. The LLM agent validates against this model."""
+
+    model_config = ConfigDict(title="CurationResult")
 
     tags: list[str] = Field(min_length=3, max_length=6)
     summary: str
@@ -52,14 +85,36 @@ class CurationResult(BaseModel):
 
 
 class Dataset(BaseModel):
-    id: str
-    name: str
-    owner: str
-    description: str
-    tags: list[str]
-    summary: str
-    curation_status: Literal["ok", "failed"] = "ok"
+    """A registered catalogue entry, including curator tags and summary."""
+
+    model_config = ConfigDict(
+        title="Dataset",
+        json_schema_extra={"examples": [TRADE_CONFIRMATIONS_DATASET]},
+    )
+
+    id: str = Field(examples=["4"])
+    name: str = Field(examples=["Trade Confirmations"])
+    owner: str = Field(examples=["Middle Office"])
+    description: str = Field(examples=[TRADE_CONFIRMATIONS_CREATE["description"]])
+    tags: list[str] = Field(examples=[["trading", "finance", "settlements", "daily"]])
+    summary: str = Field(
+        examples=["A daily export of confirmed trades covering counterparties and settlements."],
+    )
+    curation_status: Literal["ok", "failed"] = Field(
+        default="ok",
+        examples=["ok"],
+        description="ok when the curator returned tags/summary; failed when placeholders were saved.",
+    )
 
 
 class ErrorResponse(BaseModel):
-    error: str
+    """API error body. Always `{ \"error\": \"...\" }` — never FastAPI's default 422 shape."""
+
+    model_config = ConfigDict(
+        title="ErrorResponse",
+        json_schema_extra={
+            "examples": [VALIDATION_ERROR_EXAMPLE, NOT_FOUND_ERROR_EXAMPLE],
+        },
+    )
+
+    error: str = Field(examples=["name is required"])

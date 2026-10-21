@@ -1,0 +1,367 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Data Catalogue",
+    "description": "Register datasets, attach curator tags and a one-sentence summary, then list or delete them. Validation failures are 400 with `{ \"error\": \"...\" }`, not FastAPI's default 422.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/datasets": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List datasets",
+        "operationId": "listDatasets",
+        "responses": {
+          "200": {
+            "description": "Every registered dataset, including the three seeded rows.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Dataset"
+                  },
+                  "type": "array",
+                  "title": "Response Listdatasets"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Register a dataset",
+        "operationId": "createDataset",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The saved row, with curator tags and a one-sentence summary.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dataset"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Name or description is missing or blank.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingName": {
+                    "value": {
+                      "error": "name is required"
+                    }
+                  },
+                  "blankName": {
+                    "value": {
+                      "error": "name is required and cannot be blank"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets/{dataset_id}": {
+      "delete": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Delete a dataset",
+        "operationId": "deleteDataset",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deleted row.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dataset"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No dataset with that id.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "error": "Dataset with id 'missing' was not found."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Dataset": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "examples": [
+              "4"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "examples": [
+              "Trade Confirmations"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner",
+            "examples": [
+              "Middle Office"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "examples": [
+              "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date."
+            ]
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "examples": [
+              [
+                "trading",
+                "finance",
+                "settlements",
+                "daily"
+              ]
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary",
+            "examples": [
+              "A daily export of confirmed trades covering counterparties and settlements."
+            ]
+          },
+          "curation_status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "failed"
+            ],
+            "title": "Curation Status",
+            "description": "ok when the curator returned tags/summary; failed when placeholders were saved.",
+            "default": "ok",
+            "examples": [
+              "ok"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "owner",
+          "description",
+          "tags",
+          "summary"
+        ],
+        "title": "Dataset",
+        "description": "A registered catalogue entry, including curator tags and summary.",
+        "examples": [
+          {
+            "curation_status": "ok",
+            "description": "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.",
+            "id": "4",
+            "name": "Trade Confirmations",
+            "owner": "Middle Office",
+            "summary": "A daily export of confirmed trades covering counterparties and settlements.",
+            "tags": [
+              "trading",
+              "finance",
+              "settlements",
+              "daily"
+            ]
+          }
+        ]
+      },
+      "DatasetCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "examples": [
+              "Trade Confirmations"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner",
+            "default": "",
+            "examples": [
+              "Middle Office"
+            ]
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "examples": [
+              "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date."
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description"
+        ],
+        "title": "DatasetCreate",
+        "description": "Body for registering a dataset. Name and description are required.",
+        "examples": [
+          {
+            "description": "Daily export of confirmed trades including instrument type, counterparty, notional value, and settlement date.",
+            "name": "Trade Confirmations",
+            "owner": "Middle Office"
+          }
+        ]
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error",
+            "examples": [
+              "name is required"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "description": "API error body. Always `{ \"error\": \"...\" }` \u2014 never FastAPI's default 422 shape.",
+        "examples": [
+          {
+            "error": "name is required"
+          },
+          {
+            "error": "Dataset with id 'missing' was not found."
+          }
+        ]
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
