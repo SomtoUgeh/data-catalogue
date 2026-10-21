@@ -1,5 +1,5 @@
 from app.curation.base import CurationError, Curator
-from app.curation.outcome import CurationOutcome, CurationPartial, PLACEHOLDER_SUMMARY
+from app.curation.outcome import CurationOk, CurationOutcome, CurationPartial, PLACEHOLDER_SUMMARY
 from app.main import create_app
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import DatasetCreate
@@ -165,6 +165,29 @@ def test_create_partial_keeps_tags_when_summary_fails() -> None:
     assert body["curation_status"] == "partial"
     assert body["tags"] == ["trading", "finance", "daily"]
     assert body["summary"] == PLACEHOLDER_SUMMARY
+
+
+def test_create_caps_tags_at_five() -> None:
+    class SixTagCurator(Curator):
+        def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
+            return CurationOk(
+                tags=[
+                    "trading",
+                    "finance",
+                    "settlements",
+                    "daily",
+                    "transactions",
+                    "operations",
+                ],
+                summary="A daily export of confirmed trades covering counterparties and settlements.",
+            )
+
+    client = TestClient(create_app(repository=DatasetRepository(), curator=SixTagCurator()))
+    response = client.post("/datasets", json=TRADE_CONFIRMATIONS)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["tags"] == ["trading", "finance", "settlements", "daily", "transactions"]
+    assert len(body["tags"]) == 5
 
 
 def test_create_partial_keeps_summary_when_tags_fail() -> None:

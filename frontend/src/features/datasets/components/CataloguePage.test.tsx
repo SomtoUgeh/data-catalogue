@@ -59,6 +59,33 @@ describe('CataloguePage', () => {
     expect(screen.getByRole('heading', { name: 'Product Inventory' })).toBeInTheDocument()
   })
 
+  it('shows at most five tags on a catalogue row', async () => {
+    server.use(
+      http.get(`${getApiBaseUrl()}/datasets`, () =>
+        HttpResponse.json(
+          [
+            {
+              id: '8',
+              name: 'Trade Confirmations',
+              owner: 'Middle Office',
+              description: 'Daily export of confirmed trades.',
+              tags: ['finance', 'trading', 'daily', 'transactions', 'settlements'],
+              summary: 'A daily export of trade confirmations.',
+              curation_status: 'ok',
+            },
+          ],
+          { status: 200 },
+        ),
+      ),
+    )
+    await renderCatalogue()
+
+    const tags = await screen.findByText(/^Tags:/)
+    const labels = tags.textContent?.replace('Tags: ', '').split(', ') ?? []
+    expect(labels).toHaveLength(5)
+    expect(labels).toEqual(['finance', 'trading', 'daily', 'transactions', 'settlements'])
+  })
+
   it('shows a failed-AI indicator on a row that saved without tags', async () => {
     server.use(
       http.get(`${getApiBaseUrl()}/datasets`, () =>

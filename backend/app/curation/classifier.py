@@ -5,46 +5,23 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.config import Settings
 from app.curation.base import CurationError
+from app.curation.tags import MAX_TAGS, NOUL_THRESHOLD, TAG_REGISTRY
 from app.schemas import DatasetCreate
 
 DEFAULT_CLASSIFIER_MODEL = "typesafe/jev"
-NOUL_THRESHOLD = 0.55
-
-# One yes/no question per catalogue tag. Jev is a decision model: it returns
-# a probability, not free text, so the closed tag set stays closed.
-TAG_CRITERIA: list[tuple[str, str]] = [
-    ("finance", "Money, amounts, currencies, P&L, capital, or financial reporting"),
-    ("trading", "Trades, instruments, counterparties, confirmations, or trading books"),
-    ("settlements", "Settlement dates, clearing, collateral, or post-trade settlement"),
-    ("transactions", "Transaction records, payments, or transfers"),
-    ("inventory", "Stock levels, SKUs, quantity on hand, or reorder thresholds"),
-    ("operations", "Operational processes, warehouse operations, or ops workflows"),
-    ("warehouse", "Warehouse locations or stored stock"),
-    ("HR", "Employees, departments, roles, or HR records"),
-    ("employees", "People who work at the firm, as the data subject"),
-    ("customers", "Customers or clients as the data subject"),
-    ("products", "Products or SKUs as the data subject"),
-    (
-        "PII",
-        "The description names people-identifying fields such as customer ID, name, or email — not merely a product name",
-    ),
-    ("daily", "The feed or snapshot is produced daily"),
-    ("weekly", "The feed or snapshot is produced weekly"),
-    ("monthly", "The feed or snapshot is produced monthly"),
-]
 
 
 def tag_questions() -> dict[str, dict]:
     return {
-        tag: {
+        spec.id: {
             "type": "noul",
-            "instructions": f"Should this dataset be tagged {tag}?",
+            "instructions": f"Should this dataset be tagged {spec.id}?",
             "criteria": {
-                "true": meaning,
-                "false": f"The dataset is not about {tag}",
+                "true": spec.meaning,
+                "false": f"The dataset is not about {spec.id}",
             },
         }
-        for tag, meaning in TAG_CRITERIA
+        for spec in TAG_REGISTRY
     }
 
 
@@ -66,21 +43,22 @@ class JevResponse(BaseModel):
     result: dict | None = None
 
 
-def tags_from_answers(answers: dict, *, limit: int = 6, threshold: float = NOUL_THRESHOLD) -> list[str]:
+def tags_from_answers(
+    answers: dict,
+    *,
+    limit: int = MAX_TAGS,
+    threshold: float = NOUL_THRESHOLD,
+) -> list[str]:
     scored: list[tuple[str, float]] = []
-    for tag, _meaning in TAG_CRITERIA:
-        raw = answers.get(tag)
+    for spec in TAG_REGISTRY:
+        raw = answers.get(spec.id)
         if isinstance(raw, NoulAnswer):
             score = raw.score()
         else:
             score = NoulAnswer.model_validate(raw or {}).score()
-        scored.append((tag, score))
+        scored.append((spec.id, score))
     scored.sort(key=lambda item: item[1], reverse=True)
-
-    tags = [tag for tag, score in scored if score >= threshold][:limit]
-    if len(tags) < 3:
-        tags = [tag for tag, _score in scored[:3]]
-    return tags
+    return [tag for tag, score in scored if score >= threshold][:limit]
 
 
 def parse_jev_answers(payload: object) -> dict[str, NoulAnswer]:
@@ -148,6 +126,6 @@ class ClassifierCurator:
                 client.close()
 
         tags = tags_from_answers(answers)
-        if len(tags) < 3:
-            raise CurationError("classifier returned fewer than 3 tags")
+        if not tags:
+            raise CurationError("classifier returned no tags above threshold")
         return tags

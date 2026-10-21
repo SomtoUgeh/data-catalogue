@@ -63,7 +63,7 @@ export function curateDataset(payload: DatasetCreate): Pick<Dataset, 'tags' | 's
       : `A ${cadence} catalogue entry for ${payload.name}: ${firstClause}.`
     : `A catalogue entry for ${payload.name}: ${firstClause}.`
 
-  return { tags: tags.slice(0, 6), summary }
+  return { tags: tags.slice(0, 5), summary }
 }
 
 export function createStoredDataset(payload: DatasetCreate, failed = false): Dataset {

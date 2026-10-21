@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.curation.tags import normalize_tags
+from app.curation.tags import MAX_TAGS, normalize_tags
 
 TRADE_CONFIRMATIONS_CREATE = {
     "name": "Trade Confirmations",
@@ -52,15 +52,15 @@ class CurationResult(BaseModel):
 
     model_config = ConfigDict(title="CurationResult")
 
-    tags: list[str] = Field(min_length=3, max_length=6)
+    tags: list[str] = Field(min_length=3, max_length=MAX_TAGS)
     summary: str
 
     @field_validator("tags")
     @classmethod
     def clean_tags(cls, value: list[str]) -> list[str]:
-        tags = normalize_tags(value, limit=6)
-        if not 3 <= len(tags) <= 6:
-            raise ValueError("tags must contain between 3 and 6 labels")
+        tags = normalize_tags(value, limit=MAX_TAGS)
+        if not 3 <= len(tags) <= MAX_TAGS:
+            raise ValueError(f"tags must contain between 3 and {MAX_TAGS} labels")
         return tags
 
     @field_validator("summary")
@@ -102,7 +102,10 @@ class Dataset(BaseModel):
     name: str = Field(examples=["Trade Confirmations"])
     owner: str = Field(examples=["Middle Office"])
     description: str = Field(examples=[TRADE_CONFIRMATIONS_CREATE["description"]])
-    tags: list[str] = Field(examples=[["trading", "finance", "settlements", "daily"]])
+    tags: list[str] = Field(
+        max_length=MAX_TAGS,
+        examples=[["trading", "finance", "settlements", "daily"]],
+    )
     summary: str = Field(
         examples=["A daily export of confirmed trades covering counterparties and settlements."],
     )

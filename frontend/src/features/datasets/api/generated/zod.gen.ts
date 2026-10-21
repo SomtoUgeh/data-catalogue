@@ -12,7 +12,7 @@ export const zDataset = z.object({
     name: z.string(),
     owner: z.string(),
     description: z.string(),
-    tags: z.array(z.string()),
+    tags: z.array(z.string()).max(5),
     summary: z.string(),
     curation_status: z.enum([
         'ok',

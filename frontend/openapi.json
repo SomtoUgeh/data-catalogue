@@ -197,6 +197,7 @@
               "type": "string"
             },
             "type": "array",
+            "maxItems": 5,
             "title": "Tags",
             "examples": [
               [

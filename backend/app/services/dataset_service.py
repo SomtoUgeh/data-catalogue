@@ -4,6 +4,7 @@ import time
 
 from app.curation.base import Curator
 from app.curation.outcome import CurationFailed, PLACEHOLDER_SUMMARY
+from app.curation.tags import MAX_TAGS, normalize_tags
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import Dataset, DatasetCreate
 
@@ -74,7 +75,7 @@ class DatasetService:
             name=payload.name,
             owner=payload.owner,
             description=payload.description,
-            tags=outcome.tags,
+            tags=normalize_tags(list(outcome.tags), MAX_TAGS),
             summary=outcome.summary,
             curation_status=outcome.status,
         )

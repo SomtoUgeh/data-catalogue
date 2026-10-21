@@ -7,7 +7,8 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
 from app.config import DEFAULT_CLASSIFIER_MODEL, DEFAULT_LLM_MODEL, Settings, get_settings
-from app.curation.classifier import TAG_CRITERIA, ClassifierCurator, tags_from_answers
+from app.curation.classifier import ClassifierCurator, tags_from_answers
+from app.curation.tags import TAG_REGISTRY
 from app.curation.factory import get_curator
 from app.curation.hybrid import HybridCurator
 from app.curation.llm import LlmCurator
@@ -52,7 +53,7 @@ def test_get_curator_is_always_hybrid(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_normalize_tags_lowercases_dedupes_and_keeps_acronyms() -> None:
     assert normalize_tags(
         ["Finance", "FINANCE", "PII", "middle", "NOTIONAL_VALUE!", "daily", "weekly", "extra"]
-    ) == ["finance", "PII", "middle", "notional_value", "daily", "weekly"]
+    ) == ["finance", "PII", "middle", "notional_value", "daily"]
 
 
 def test_curation_result_rejects_short_or_wordy_summaries() -> None:
@@ -116,7 +117,7 @@ def test_safe_error_redacts_bearer_tokens() -> None:
 
 
 def test_tag_set_does_not_include_trades() -> None:
-    assert "trades" not in {tag for tag, _meaning in TAG_CRITERIA}
+    assert "trades" not in {spec.id for spec in TAG_REGISTRY}
 
 
 def test_tags_from_answers_keeps_high_noul_scores() -> None:
@@ -134,14 +135,29 @@ def test_tags_from_answers_keeps_high_noul_scores() -> None:
     assert "trades" not in tags
 
 
-def test_tags_from_answers_pads_to_three_when_scores_are_low() -> None:
+def test_tags_from_answers_caps_at_five_highest_scores() -> None:
+    answers = {
+        "trading": {"noul": 0.99},
+        "finance": {"noul": 0.95},
+        "settlements": {"noul": 0.9},
+        "daily": {"noul": 0.88},
+        "transactions": {"noul": 0.8},
+        "operations": {"noul": 0.7},
+        "HR": {"noul": 0.6},
+    }
+    tags = tags_from_answers(answers)
+    assert tags == ["trading", "finance", "settlements", "daily", "transactions"]
+    assert len(tags) == 5
+
+
+def test_tags_from_answers_omits_scores_below_threshold() -> None:
     answers = {
         "trading": {"noul": 0.2},
         "finance": {"noul": 0.18},
         "daily": {"noul": 0.11},
         "HR": {"noul": 0.02},
     }
-    assert tags_from_answers(answers) == ["trading", "finance", "daily"]
+    assert tags_from_answers(answers) == []
 
 
 def test_classifier_curator_maps_mocked_http_response() -> None:

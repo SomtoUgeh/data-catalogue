@@ -14,7 +14,7 @@ CURATION_INSTRUCTIONS = """You curate an internal data catalogue.
 
 Return a JSON object that matches the provided schema.
 
-Pick 3-6 tags from these families only:
+Pick 3-5 tags from these families only:
 - domain: finance, trading, settlements, transactions, inventory, operations, warehouse, HR
 - data subject: employees, customers, products
 - sensitivity: PII (only if the description names people-identifying fields such as customer ID, name, or email)
