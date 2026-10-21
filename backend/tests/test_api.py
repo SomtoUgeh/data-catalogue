@@ -1,5 +1,5 @@
 from app.curation.base import CurationError, Curator
-from app.curation.outcome import CurationOk, CurationOutcome, CurationPartial, PLACEHOLDER_SUMMARY
+from app.curation.outcome import PLACEHOLDER_SUMMARY, CurationOk, CurationOutcome, CurationPartial
 from app.main import create_app
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import DatasetCreate
@@ -97,7 +97,10 @@ def test_delete_dataset_returns_200_and_removes_entry(client: TestClient) -> Non
 
 def _assert_field_error(body: dict, field: str) -> None:
     assert body["error"] == "Validation failed"
-    assert any(item["field"] == field and item["message"] == f"{field} is required" for item in body["fields"])
+    assert any(
+        item["field"] == field and item["message"] == f"{field} is required"
+        for item in body["fields"]
+    )
 
 
 def test_post_missing_name_returns_400(client: TestClient) -> None:

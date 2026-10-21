@@ -2,10 +2,6 @@ import json
 
 import httpx
 import pytest
-from pydantic_ai import ModelResponse, TextPart, models
-from pydantic_ai.models.function import FunctionModel
-from pydantic_ai.models.test import TestModel
-
 from app.config import DEFAULT_CLASSIFIER_MODEL, DEFAULT_LLM_MODEL, Settings, get_settings
 from app.curation.classifier import ClassifierCurator, tags_from_answers
 from app.curation.factory import get_curator
@@ -15,6 +11,9 @@ from app.curation.outcome import PLACEHOLDER_SUMMARY, compose_curation
 from app.curation.tags import TAG_REGISTRY, normalize_tags
 from app.schemas import DatasetCreate, SummaryResult
 from app.services.dataset_service import _safe_error
+from pydantic_ai import ModelResponse, TextPart, models
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.test import TestModel
 
 models.ALLOW_MODEL_REQUESTS = False
 
@@ -31,6 +30,7 @@ VALID_OUTPUT = {
     "tags": ["trading", "finance", "settlements", "daily"],
     "summary": "A daily export of confirmed trades covering counterparties and settlements.",
 }
+
 
 def test_get_curator_is_always_hybrid(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (

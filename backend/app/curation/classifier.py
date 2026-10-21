@@ -103,9 +103,7 @@ class ClassifierCurator:
             ),
         }
         if self.settings.cf_ai_gateway_token.strip():
-            headers["cf-aig-authorization"] = (
-                f"Bearer {self.settings.cf_ai_gateway_token.strip()}"
-            )
+            headers["cf-aig-authorization"] = f"Bearer {self.settings.cf_ai_gateway_token.strip()}"
 
         client = self._http_client or httpx.Client(timeout=self.settings.request_timeout_seconds)
         close_client = self._http_client is None

@@ -1,10 +1,12 @@
+from typing import Any
+
 from fastapi import APIRouter, Request, status
 
 from app.schemas import Dataset, DatasetCreate, ErrorResponse, ValidationErrorResponse
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
-VALIDATION_ERROR = {
+VALIDATION_ERROR: dict[int | str, dict[str, Any]] = {
     400: {
         "model": ValidationErrorResponse,
         "description": "Name or description is missing or blank.",
@@ -29,7 +31,7 @@ VALIDATION_ERROR = {
     },
 }
 
-NOT_FOUND_ERROR = {
+NOT_FOUND_ERROR: dict[int | str, dict[str, Any]] = {
     404: {
         "model": ErrorResponse,
         "description": "No dataset with that id.",

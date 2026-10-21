@@ -45,7 +45,9 @@ class DatasetService:
     def create_dataset(self, payload: DatasetCreate) -> Dataset:
         dataset_id = self.repository.next_id()
         curator_name = type(self.curator).__name__
-        logger.info("curating dataset_id=%s curator=%s name=%s", dataset_id, curator_name, payload.name)
+        logger.info(
+            "curating dataset_id=%s curator=%s name=%s", dataset_id, curator_name, payload.name
+        )
         started = time.perf_counter()
         try:
             outcome = self.curator.curate(payload, dataset_id=dataset_id)

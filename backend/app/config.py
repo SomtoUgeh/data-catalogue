@@ -34,10 +34,7 @@ class Settings(BaseSettings):
 
     @property
     def classifier_run_url(self) -> str:
-        return (
-            "https://api.cloudflare.com/client/v4/accounts/"
-            f"{self.cf_account_id.strip()}/ai/run"
-        )
+        return f"https://api.cloudflare.com/client/v4/accounts/{self.cf_account_id.strip()}/ai/run"
 
 
 @lru_cache

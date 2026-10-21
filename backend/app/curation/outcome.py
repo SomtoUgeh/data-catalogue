@@ -2,9 +2,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Discriminator, Field
 
-PLACEHOLDER_SUMMARY = (
-    "Curation unavailable. Tags and summary will appear once tagging succeeds."
-)
+PLACEHOLDER_SUMMARY = "Curation unavailable. Tags and summary will appear once tagging succeeds."
 
 
 class CurationOk(BaseModel):

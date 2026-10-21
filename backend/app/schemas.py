@@ -1,10 +1,10 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.curation.tags import MAX_TAGS
 
-TRADE_CONFIRMATIONS_CREATE = {
+TRADE_CONFIRMATIONS_CREATE: dict[str, Any] = {
     "name": "Trade Confirmations",
     "owner": "Middle Office",
     "description": (
@@ -13,7 +13,7 @@ TRADE_CONFIRMATIONS_CREATE = {
     ),
 }
 
-TRADE_CONFIRMATIONS_DATASET = {
+TRADE_CONFIRMATIONS_DATASET: dict[str, Any] = {
     "id": "4",
     "name": "Trade Confirmations",
     "owner": "Middle Office",
@@ -23,11 +23,11 @@ TRADE_CONFIRMATIONS_DATASET = {
     "curation_status": "ok",
 }
 
-VALIDATION_ERROR_EXAMPLE = {
+VALIDATION_ERROR_EXAMPLE: dict[str, Any] = {
     "error": "Validation failed",
     "fields": [{"field": "name", "message": "name is required"}],
 }
-NOT_FOUND_ERROR_EXAMPLE = {"error": "Dataset with id 'missing' was not found."}
+NOT_FOUND_ERROR_EXAMPLE: dict[str, Any] = {"error": "Dataset with id 'missing' was not found."}
 
 
 class DatasetCreate(BaseModel):

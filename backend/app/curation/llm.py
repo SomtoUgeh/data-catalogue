@@ -70,9 +70,7 @@ class LlmCurator:
             "cf-aig-metadata": json.dumps({"dataset_id": dataset_id or "pending"}),
         }
         if self.settings.cf_ai_gateway_token.strip():
-            headers["cf-aig-authorization"] = (
-                f"Bearer {self.settings.cf_ai_gateway_token.strip()}"
-            )
+            headers["cf-aig-authorization"] = f"Bearer {self.settings.cf_ai_gateway_token.strip()}"
 
         http_client = self._http_client or httpx2.AsyncClient(
             headers=headers,

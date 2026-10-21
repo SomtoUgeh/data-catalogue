@@ -57,7 +57,7 @@ def create_app(
         description=(
             "Register datasets, attach curator tags and a one-sentence summary, "
             "then list or delete them. Validation failures are 400 with "
-            "`{ \"error\": \"Validation failed\", \"fields\": [...] }`, "
+            '`{ "error": "Validation failed", "fields": [...] }`, '
             "not FastAPI's default 422."
         ),
         lifespan=lifespan,

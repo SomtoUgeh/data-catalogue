@@ -1,11 +1,10 @@
 import pytest
-from fastapi.testclient import TestClient
-
 from app.curation.base import Curator
 from app.curation.outcome import CurationOk, CurationOutcome
 from app.main import create_app
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import DatasetCreate
+from fastapi.testclient import TestClient
 
 
 class StubCurator(Curator):
