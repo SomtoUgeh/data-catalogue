@@ -1,0 +1,10 @@
+# Frontend
+
+Vite + React SPA for the data catalogue. Setup, env vars, and architecture live in the [root README](../README.md).
+
+```bash
+npm install
+npm run dev
+npm test
+npm run gen:api   # export FastAPI OpenAPI + regenerate the typed client
+```
