@@ -11,12 +11,10 @@ from app.curation.classifier import TAG_CRITERIA, ClassifierCurator, tags_from_a
 from app.curation.factory import get_curator
 from app.curation.hybrid import HybridCurator
 from app.curation.llm import LlmCurator
+from app.curation.outcome import PLACEHOLDER_SUMMARY, compose_curation
 from app.curation.tags import normalize_tags
-from app.main import create_app
-from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import CurationResult, DatasetCreate
-from app.services.dataset_service import PLACEHOLDER_SUMMARY, PLACEHOLDER_TAGS, _safe_error
-from fastapi.testclient import TestClient
+from app.services.dataset_service import _safe_error
 
 models.ALLOW_MODEL_REQUESTS = False
 
@@ -33,13 +31,6 @@ VALID_OUTPUT = {
     "tags": ["trading", "finance", "settlements", "daily"],
     "summary": "A daily export of confirmed trades covering counterparties and settlements.",
 }
-
-TRADE_PAYLOAD = {
-    "name": TRADE.name,
-    "owner": TRADE.owner,
-    "description": TRADE.description,
-}
-
 
 def test_get_curator_is_always_hybrid(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in (
@@ -178,6 +169,26 @@ def test_classifier_curator_maps_mocked_http_response() -> None:
     assert set(tags) >= {"trading", "finance", "settlements", "daily"}
 
 
+def test_compose_curation_is_a_discriminated_union() -> None:
+    ok = compose_curation(["trading", "finance", "daily"], "A daily export of confirmed trades.")
+    assert ok.status == "ok"
+    assert ok.tags == ["trading", "finance", "daily"]
+
+    tags_only = compose_curation(["trading", "finance", "daily"], None)
+    assert tags_only.status == "partial"
+    assert tags_only.tags == ["trading", "finance", "daily"]
+    assert tags_only.summary == PLACEHOLDER_SUMMARY
+
+    summary_only = compose_curation(None, "A daily export of confirmed trades.")
+    assert summary_only.status == "partial"
+    assert summary_only.tags == []
+
+    failed = compose_curation(None, None)
+    assert failed.status == "failed"
+    assert failed.tags == []
+    assert failed.summary == PLACEHOLDER_SUMMARY
+
+
 def test_hybrid_uses_classifier_tags_and_llm_summary() -> None:
     class FakeClassifier(ClassifierCurator):
         def classify(self, payload, dataset_id=""):
@@ -191,11 +202,12 @@ def test_hybrid_uses_classifier_tags_and_llm_summary() -> None:
     )
     curator = HybridCurator(FakeClassifier(_settings()), summarizer)
     result = curator.curate(TRADE)
+    assert result.status == "ok"
     assert result.tags == ["trading", "finance", "daily"]
     assert result.summary.startswith("A daily export")
 
 
-def test_hybrid_raises_when_classifier_fails() -> None:
+def test_hybrid_keeps_summary_when_classifier_fails() -> None:
     class BoomClassifier(ClassifierCurator):
         def classify(self, payload, dataset_id=""):
             raise RuntimeError("gateway down")
@@ -204,9 +216,25 @@ def test_hybrid_raises_when_classifier_fails() -> None:
         _settings(),
         model=TestModel(custom_output_text=json.dumps({"summary": VALID_OUTPUT["summary"]})),
     )
-    curator = HybridCurator(BoomClassifier(_settings()), summarizer)
-    with pytest.raises(RuntimeError, match="gateway down"):
-        curator.curate(TRADE)
+    result = HybridCurator(BoomClassifier(_settings()), summarizer).curate(TRADE)
+    assert result.status == "partial"
+    assert result.tags == []
+    assert result.summary.startswith("A daily export")
+
+
+def test_hybrid_keeps_tags_when_summarizer_fails() -> None:
+    class FakeClassifier(ClassifierCurator):
+        def classify(self, payload, dataset_id=""):
+            return ["trading", "finance", "daily"]
+
+    class BoomSummarizer:
+        def summarise(self, payload, tags, dataset_id=""):
+            raise RuntimeError("llm down")
+
+    result = HybridCurator(FakeClassifier(_settings()), BoomSummarizer()).curate(TRADE)
+    assert result.status == "partial"
+    assert result.tags == ["trading", "finance", "daily"]
+    assert result.summary == PLACEHOLDER_SUMMARY
 
 
 def test_llm_summarise_accepts_valid_testmodel_output() -> None:
@@ -216,18 +244,3 @@ def test_llm_summarise_accepts_valid_testmodel_output() -> None:
     )
     summary = curator.summarise(TRADE, ["trading", "finance", "daily"])
     assert summary.startswith("A daily export")
-
-
-def test_llm_failure_falls_back_on_create() -> None:
-    curator = LlmCurator(
-        _settings(),
-        model=_function_model(json.dumps({"tags": ["x"], "summary": "Nope"})),
-    )
-    client = TestClient(create_app(repository=DatasetRepository(), curator=curator))
-
-    response = client.post("/datasets", json=TRADE_PAYLOAD)
-    assert response.status_code == 201
-    body = response.json()
-    assert body["tags"] == PLACEHOLDER_TAGS
-    assert body["summary"] == PLACEHOLDER_SUMMARY
-    assert body["curation_status"] == "failed"

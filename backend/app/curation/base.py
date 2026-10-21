@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
-from app.schemas import CurationResult, DatasetCreate
+from app.curation.outcome import CurationOutcome
+from app.schemas import DatasetCreate
 
 
 class CurationError(Exception):
@@ -13,5 +14,5 @@ class MalformedCurationError(CurationError):
 
 class Curator(ABC):
     @abstractmethod
-    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
-        """Return structured curation, or raise CurationError."""
+    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
+        """Return a typed curation outcome. Raise only for unexpected errors."""

@@ -3,15 +3,13 @@ import re
 import time
 
 from app.curation.base import Curator
+from app.curation.outcome import CurationFailed, PLACEHOLDER_SUMMARY
 from app.repositories.dataset_repository import DatasetRepository
 from app.schemas import Dataset, DatasetCreate
 
 logger = logging.getLogger("uvicorn.error")
 
-PLACEHOLDER_TAGS = ["uncurated"]
-PLACEHOLDER_SUMMARY = (
-    "Curation unavailable. Tags and summary will appear once tagging succeeds."
-)
+PLACEHOLDER_TAGS: list[str] = []
 
 _BEARER_RE = re.compile(r"(?i)\bbearer\s+\S+")
 _KEY_RE = re.compile(r"(?i)\b(?:authorization|api[_-]?key)\s*[=:]\s*\S+")
@@ -51,17 +49,9 @@ class DatasetService:
         logger.info("curating dataset_id=%s curator=%s name=%s", dataset_id, curator_name, payload.name)
         started = time.perf_counter()
         try:
-            curated = self.curator.curate(payload, dataset_id=dataset_id)
-            tags, summary, status = curated.tags, curated.summary, "ok"
-            logger.info(
-                "curation_status=ok dataset_id=%s curator=%s tags=%s latency_ms=%d",
-                dataset_id,
-                curator_name,
-                tags,
-                int((time.perf_counter() - started) * 1000),
-            )
+            outcome = self.curator.curate(payload, dataset_id=dataset_id)
         except Exception as exc:
-            tags, summary, status = PLACEHOLDER_TAGS, PLACEHOLDER_SUMMARY, "failed"
+            outcome = CurationFailed()
             logger.warning(
                 "curation_status=failed dataset_id=%s curator=%s latency_ms=%d error=%s",
                 dataset_id,
@@ -69,15 +59,24 @@ class DatasetService:
                 int((time.perf_counter() - started) * 1000),
                 _safe_error(exc),
             )
+        else:
+            logger.info(
+                "curation_status=%s dataset_id=%s curator=%s tags=%s latency_ms=%d",
+                outcome.status,
+                dataset_id,
+                curator_name,
+                outcome.tags,
+                int((time.perf_counter() - started) * 1000),
+            )
 
         dataset = Dataset(
             id=dataset_id,
             name=payload.name,
             owner=payload.owner,
             description=payload.description,
-            tags=tags,
-            summary=summary,
-            curation_status=status,
+            tags=outcome.tags,
+            summary=outcome.summary,
+            curation_status=outcome.status,
         )
         return self.repository.add(dataset)
 

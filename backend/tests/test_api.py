@@ -1,8 +1,9 @@
 from app.curation.base import CurationError, Curator
+from app.curation.outcome import CurationOutcome, CurationPartial, PLACEHOLDER_SUMMARY
 from app.main import create_app
 from app.repositories.dataset_repository import DatasetRepository
-from app.schemas import CurationResult, DatasetCreate
-from app.services.dataset_service import PLACEHOLDER_SUMMARY, PLACEHOLDER_TAGS
+from app.schemas import DatasetCreate
+from app.services.dataset_service import PLACEHOLDER_TAGS
 from fastapi.testclient import TestClient
 
 TRADE_CONFIRMATIONS = {
@@ -23,8 +24,24 @@ SEEDED_NAMES = {
 
 
 class FailingCurator(Curator):
-    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationResult:
+    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
         raise CurationError("forced failure")
+
+
+class PartialTagsCurator(Curator):
+    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
+        return CurationPartial(
+            tags=["trading", "finance", "daily"],
+            summary=PLACEHOLDER_SUMMARY,
+        )
+
+
+class PartialSummaryCurator(Curator):
+    def curate(self, payload: DatasetCreate, dataset_id: str = "") -> CurationOutcome:
+        return CurationPartial(
+            tags=[],
+            summary="A daily export of confirmed trades covering counterparties and settlements.",
+        )
 
 
 def test_openapi_names_response_models(client: TestClient) -> None:
@@ -138,3 +155,23 @@ def test_create_still_saves_when_curation_fails() -> None:
 
     listed = client.get("/datasets").json()
     assert any(item["id"] == body["id"] and item["curation_status"] == "failed" for item in listed)
+
+
+def test_create_partial_keeps_tags_when_summary_fails() -> None:
+    client = TestClient(create_app(repository=DatasetRepository(), curator=PartialTagsCurator()))
+    response = client.post("/datasets", json=TRADE_CONFIRMATIONS)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["curation_status"] == "partial"
+    assert body["tags"] == ["trading", "finance", "daily"]
+    assert body["summary"] == PLACEHOLDER_SUMMARY
+
+
+def test_create_partial_keeps_summary_when_tags_fail() -> None:
+    client = TestClient(create_app(repository=DatasetRepository(), curator=PartialSummaryCurator()))
+    response = client.post("/datasets", json=TRADE_CONFIRMATIONS)
+    assert response.status_code == 201
+    body = response.json()
+    assert body["curation_status"] == "partial"
+    assert body["tags"] == []
+    assert body["summary"].startswith("A daily export")

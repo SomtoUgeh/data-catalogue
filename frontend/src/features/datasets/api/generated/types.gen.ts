@@ -37,9 +37,9 @@ export type Dataset = {
     /**
      * Curation Status
      *
-     * ok when the curator returned tags/summary; failed when placeholders were saved.
+     * ok when Jev and Llama both succeeded. partial when exactly one succeeded. failed when both failed (empty tags and a placeholder summary).
      */
-    curation_status?: 'ok' | 'failed';
+    curation_status?: 'ok' | 'partial' | 'failed';
 };
 
 /**

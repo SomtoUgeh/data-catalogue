@@ -7,7 +7,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.config import Settings
-from app.curation.base import CurationError, Curator
+from app.curation.base import CurationError
 from app.schemas import CurationResult, DatasetCreate, SummaryResult
 
 CURATION_INSTRUCTIONS = """You curate an internal data catalogue.
@@ -37,7 +37,7 @@ description: Snapshot of warehouse stock levels by SKU, including product name, 
 """
 
 
-class LlmCurator(Curator):
+class LlmCurator:
     def __init__(
         self,
         settings: Settings,

@@ -14,6 +14,7 @@ import {
 } from '../api/errors'
 import { datasetCreateFormSchema } from '../api/formSchema'
 import { useCreateDatasetMutation } from '../api/mutations'
+import { curationBanner } from '../curationBanner'
 
 const FORM_FIELDS = ['name', 'owner', 'description'] as const
 
@@ -60,9 +61,7 @@ export function AddDatasetForm() {
       : null
 
   const curationWarning =
-    createDataset.isSuccess && createDataset.data.curation_status === 'failed'
-      ? 'Curation fell back to placeholders. The dataset was still saved.'
-      : null
+    createDataset.isSuccess ? curationBanner(createDataset.data) : null
 
   return (
     <form

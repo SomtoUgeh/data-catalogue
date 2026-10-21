@@ -1,6 +1,7 @@
 import json
 
 import httpx
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.config import Settings
 from app.curation.base import CurationError
@@ -47,10 +48,32 @@ def tag_questions() -> dict[str, dict]:
     }
 
 
+class NoulAnswer(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    noul: float | None = None
+    probability: float | None = None
+
+    def score(self) -> float:
+        raw = self.noul if self.noul is not None else self.probability
+        return float(raw) if raw is not None else 0.0
+
+
+class JevResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    answers: dict[str, NoulAnswer] | None = None
+    result: dict | None = None
+
+
 def tags_from_answers(answers: dict, *, limit: int = 6, threshold: float = NOUL_THRESHOLD) -> list[str]:
     scored: list[tuple[str, float]] = []
     for tag, _meaning in TAG_CRITERIA:
-        score = _noul(answers.get(tag))
+        raw = answers.get(tag)
+        if isinstance(raw, NoulAnswer):
+            score = raw.score()
+        else:
+            score = NoulAnswer.model_validate(raw or {}).score()
         scored.append((tag, score))
     scored.sort(key=lambda item: item[1], reverse=True)
 
@@ -60,28 +83,20 @@ def tags_from_answers(answers: dict, *, limit: int = 6, threshold: float = NOUL_
     return tags
 
 
-def _noul(answer: object) -> float:
-    if not isinstance(answer, dict):
-        return 0.0
-    raw = answer.get("noul", answer.get("probability", 0.0))
+def parse_jev_answers(payload: object) -> dict[str, NoulAnswer]:
     try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return 0.0
-
-
-def _extract_answers(payload: object) -> dict:
-    if not isinstance(payload, dict):
-        raise CurationError("classifier response was not an object")
-    if isinstance(payload.get("answers"), dict):
-        return payload["answers"]
-    result = payload.get("result")
-    if isinstance(result, dict):
-        if isinstance(result.get("answers"), dict):
-            return result["answers"]
-        nested = result.get("result")
-        if isinstance(nested, dict) and isinstance(nested.get("answers"), dict):
-            return nested["answers"]
+        envelope = JevResponse.model_validate(payload)
+    except ValidationError as exc:
+        raise CurationError("classifier response was not a Jev object") from exc
+    if envelope.answers:
+        return envelope.answers
+    result = envelope.result or {}
+    nested = result.get("answers")
+    if isinstance(nested, dict):
+        return {key: NoulAnswer.model_validate(value) for key, value in nested.items()}
+    deeper = result.get("result")
+    if isinstance(deeper, dict) and isinstance(deeper.get("answers"), dict):
+        return {key: NoulAnswer.model_validate(value) for key, value in deeper["answers"].items()}
     raise CurationError("classifier response missing answers")
 
 
@@ -123,7 +138,7 @@ class ClassifierCurator:
             if response.status_code >= 400:
                 detail = (getattr(response, "text", None) or "")[:400]
                 raise CurationError(f"classifier HTTP {response.status_code} {detail}")
-            answers = _extract_answers(response.json())
+            answers = parse_jev_answers(response.json())
         except CurationError:
             raise
         except Exception as exc:

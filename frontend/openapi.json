@@ -218,10 +218,11 @@
             "type": "string",
             "enum": [
               "ok",
+              "partial",
               "failed"
             ],
             "title": "Curation Status",
-            "description": "ok when the curator returned tags/summary; failed when placeholders were saved.",
+            "description": "ok when Jev and Llama both succeeded. partial when exactly one succeeded. failed when both failed (empty tags and a placeholder summary).",
             "default": "ok",
             "examples": [
               "ok"

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import type { Dataset } from '../api/generated/types.gen'
+import { curationBanner } from '../curationBanner'
 import { DatasetOwner } from './DatasetOwner'
 import { DatasetTags } from './DatasetTags'
 
@@ -13,6 +14,7 @@ type DatasetRowProps = {
 }
 
 export function DatasetRow({ dataset, isDeleting, onDelete }: DatasetRowProps) {
+  const banner = curationBanner(dataset)
   return (
     <article>
       <Card size="sm">
@@ -43,11 +45,7 @@ export function DatasetRow({ dataset, isDeleting, onDelete }: DatasetRowProps) {
         <CardContent className="flex flex-col gap-3">
           <DatasetTags tags={dataset.tags} />
           <p className="text-sm text-muted-foreground">{dataset.summary}</p>
-          {dataset.curation_status === 'failed' ? (
-            <StatusBanner tone="warning">
-              Curation fell back to placeholders for this dataset.
-            </StatusBanner>
-          ) : null}
+          {banner ? <StatusBanner tone="warning">{banner}</StatusBanner> : null}
         </CardContent>
       </Card>
     </article>

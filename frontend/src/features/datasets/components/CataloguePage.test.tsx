@@ -59,6 +59,31 @@ describe('CataloguePage', () => {
     expect(screen.getByRole('heading', { name: 'Product Inventory' })).toBeInTheDocument()
   })
 
+  it('shows a failed-AI indicator on a row that saved without tags', async () => {
+    server.use(
+      http.get(`${getApiBaseUrl()}/datasets`, () =>
+        HttpResponse.json(
+          [
+            {
+              id: '9',
+              name: 'Broken Feed',
+              owner: 'Middle Office',
+              description: 'A feed that could not be curated.',
+              tags: [],
+              summary: 'Curation unavailable. Tags and summary will appear once tagging succeeds.',
+              curation_status: 'failed',
+            },
+          ],
+          { status: 200 },
+        ),
+      ),
+    )
+    await renderCatalogue()
+
+    expect(await screen.findByRole('heading', { name: 'Broken Feed' })).toBeInTheDocument()
+    expect(screen.getByText('AI curation failed. The dataset was still saved.')).toBeInTheDocument()
+  })
+
   it('shows a request error banner when delete fails', async () => {
     const user = userEvent.setup()
     server.use(

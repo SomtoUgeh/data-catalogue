@@ -14,7 +14,11 @@ export const zDataset = z.object({
     description: z.string(),
     tags: z.array(z.string()),
     summary: z.string(),
-    curation_status: z.enum(['ok', 'failed']).optional().default('ok')
+    curation_status: z.enum([
+        'ok',
+        'partial',
+        'failed'
+    ]).optional().default('ok')
 });
 
 /**

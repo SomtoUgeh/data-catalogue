@@ -106,10 +106,14 @@ class Dataset(BaseModel):
     summary: str = Field(
         examples=["A daily export of confirmed trades covering counterparties and settlements."],
     )
-    curation_status: Literal["ok", "failed"] = Field(
+    curation_status: Literal["ok", "partial", "failed"] = Field(
         default="ok",
         examples=["ok"],
-        description="ok when the curator returned tags/summary; failed when placeholders were saved.",
+        description=(
+            "ok when Jev and Llama both succeeded. "
+            "partial when exactly one succeeded. "
+            "failed when both failed (empty tags and a placeholder summary)."
+        ),
     )
 
 
