@@ -20,11 +20,9 @@ npm install
 npm run dev
 ```
 
-The UI is at [http://localhost:3000](http://localhost:3000). The API is at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+The UI is at [http://localhost:3000](http://localhost:3000). The API is at [http://127.0.0.1:8000](http://127.0.0.1:8000). Vite proxies `/datasets` to FastAPI. The browser always talks to the real API.
 
-Copy `backend/.env.example` only if you want a live LLM run. Leave it unset for the default keyword mock.
-
-Frontend-only (no FastAPI process): set `VITE_API_MOCKING=true` so the MSW worker answers with the same shapes and status codes.
+Copy `backend/.env.example` and set the three live values below for Jev + Llama. Without them, every create still returns 201. Tags stay empty, the summary is a placeholder, and `curation_status` is `failed`.
 
 Regenerate the typed client after a backend contract change:
 
@@ -32,23 +30,37 @@ Regenerate the typed client after a backend contract change:
 cd frontend && npm run gen:api
 ```
 
+## Curation
+
+The only curator is the hybrid. TypeSafe Jev (`typesafe/jev`) scores a closed tag set. Llama 3.3 70B writes the one-sentence summary.
+
+Jev is a decision model. It answers one yes/no (`noul`) question per label and returns a probability. That keeps the tag set closed. Llama is a write model. It produces the sentence, validated by PydanticAI `PromptedOutput`.
+
+`TAG_REGISTRY` is the one source of truth for labels. Jev questions, the five-tag cap, and tests all read it. The row keeps the five highest scores at or above 0.55, in probability order.
+
+Failure is part of the contract, not a mock path.
+
+- `ok`: Jev and Llama both succeeded.
+- `partial`: exactly one succeeded. Keep the part that worked. Use empty tags or the placeholder summary for the rest.
+- `failed`: both failed. The dataset still saves (201) with empty tags and the placeholder summary. The row shows that the AI step failed.
+
+Name, owner, and description are required. A missing or blank field is 400 with `{ "error": "Validation failed", "fields": [{ "field", "message" }] }`.
+
 ## Environment
 
-Names only — never commit values for tokens.
+Names only. Never commit values for tokens.
 
 | Name | Role |
 | --- | --- |
-| `CF_ACCOUNT_ID` | Cloudflare account id for the AI Gateway URL |
-| `CF_AI_GATEWAY_ID` | Gateway id |
+| `CF_ACCOUNT_ID` | Cloudflare account id for the Workers AI run URL and the AI Gateway URL |
+| `CF_AI_GATEWAY_ID` | Gateway id for Llama via `/compat` |
 | `CF_AI_GATEWAY_TOKEN` | Optional. Sent as `cf-aig-authorization` if the gateway itself requires auth |
 | `LLM_PROVIDER_API_KEY` | Cloudflare API token with Workers AI permission (`Authorization: Bearer`) |
 | `LLM_MODEL` | Defaults to `workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
 | `CLASSIFIER_MODEL` | Defaults to `typesafe/jev`. Swap to `@cf/cloudflare/clef-flash` for the CF-hosted Jev-compatible model |
-| `CURATOR` | `mock` (force keyword), `llm` (Llama only), `classifier` (Jev tags + keyword summary). Unset + a live key uses Jev for tags and Llama for the summary |
-| `VITE_API_BASE_URL` | Optional. Leave unset so the browser calls same-origin `/datasets` and Vite proxies to FastAPI. Set only to hit FastAPI directly. |
-| `VITE_API_MOCKING` | `true` starts the MSW worker for frontend-only demos |
+| `VITE_API_BASE_URL` | Optional. Leave unset so the browser calls same-origin `/datasets` and Vite proxies to FastAPI |
 
-A live run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. Without those, the keyword mock is used.
+A live run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`.
 
 ## Tests
 
@@ -56,6 +68,8 @@ A live run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`
 cd backend && python3 -m pytest
 cd frontend && npm test
 ```
+
+Backend tests stub Jev and Llama at the HTTP boundary. Frontend tests use MSW. The running app does not.
 
 ## Architecture
 
@@ -87,7 +101,7 @@ cd frontend && npm test
             ├── api/                # typed client, queryOptions, mutations
             ├── api/generated/      # hey-api output (committed)
             ├── components/
-            └── mocks/              # MSW handlers + fixtures
+            └── mocks/              # MSW handlers + fixtures (Vitest only)
 ```
 
 Data flow:
@@ -97,35 +111,31 @@ Data flow:
 3. The `/` loader calls `context.queryClient.ensureQueryData(datasetsQueryOptions())`. That factory wraps the generated `listDatasets` SDK call.
 4. `CataloguePage` reads the same query with `useSuspenseQuery`. Pending and error UI stay on the route (`pendingComponent` / `errorComponent`).
 5. Create and delete are `useMutation` hooks. On success they `invalidateQueries` the datasets key. Form values live in TanStack Form; pending and request errors come from the mutation.
-6. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK plus Zod schemas. The SDK parses successful responses with those schemas. There is no hand-written `fetch`. MSW mirrors the same contract in Vitest and, when `VITE_API_MOCKING=true`, in the browser.
+6. FastAPI remains the source of truth. `npm run gen:api` exports `/openapi.json` and regenerates the TypeScript SDK plus Zod schemas. The SDK parses successful responses with those schemas. There is no hand-written `fetch`. MSW is for Vitest only.
 
 ## Design decisions
 
 **In-memory store.** Fine for the brief. The repository is a class so a database is a swap, not a rewrite. Data resets when the process restarts.
 
-**Jev for tags, Llama for the sentence.** Tags are a closed set (domain, subject, PII, cadence). That is a decision-model job: TypeSafe Jev on Workers AI answers one yes/no (`noul`) question per tag and returns calibrated probabilities. The 70B Llama write is only the one-sentence summary. `CURATOR=llm` keeps the old all-in-one Llama path; `CURATOR=classifier` is Jev tags plus the keyword summary. Offline, or if Jev errors, the keyword rule table still fills in.
+**PydanticAI, not hand-rolled JSON.** The Llama path is an `Agent` with `output_type=PromptedOutput(SummaryResult)` and `retries={'output': 2}`. Field validators require a one-sentence summary under ~25 words starting with `A `. Validation failures go back to the model. Tests use `TestModel` / `FunctionModel` with no network.
 
-**PydanticAI, not hand-rolled JSON.** The LLM curator is an `Agent` with `output_type=PromptedOutput(CurationResult)` and `retries={'output': 2}`. Field validators normalise tags (lowercase, acronyms, dedupe, punctuation, cap 6) and require a one-sentence summary under ~25 words starting with `A `. Validation failures go back to the model. Tests use `TestModel` / `FunctionModel` with no network.
-
-**PromptedOutput, not tools.** Workers AI over the gateway `/compat` endpoint is a chat-completions lookalike. Tool calling (`ToolOutput`, the PydanticAI default) is unreliable there. `NativeOutput` needs a provider-native JSON mode we do not want to assume. `PromptedOutput` puts the schema in the prompt and works with any model, including Llama. That is why it is the mode.
+**PromptedOutput, not tools.** Workers AI over the gateway `/compat` endpoint is a chat-completions lookalike. Tool calling (`ToolOutput`, the PydanticAI default) is unreliable there. `NativeOutput` needs a provider-native JSON mode we do not want to assume. `PromptedOutput` puts the schema in the prompt and works with any model, including Llama.
 
 **Why the gateway is there.** Cloudflare AI Gateway sits in front of Workers AI so we get request logs, caching, rate limits, and a provider swap (change `LLM_MODEL` from `workers-ai/...` to `openai/...`) without changing application code. `cf-aig-metadata` carries the dataset id so a log line can be traced back to a catalogue row.
 
-**400, not 422.** FastAPI's default validation status is 422. The brief asks for 400 with a descriptive message, so the app factory remaps `RequestValidationError` to `{ "error": "Validation failed", "fields": [{ "field", "message" }] }`. The top-level `error` string stays so a 400 is still obvious; `fields` is how the form maps messages without regex.
+**400, not 422.** FastAPI's default validation status is 422. The brief asks for 400 with a descriptive message, so the app factory remaps `RequestValidationError` to `{ "error": "Validation failed", "fields": [{ "field", "message" }] }`.
 
-**Curation fallback.** The hybrid curator falls back to the keyword table if Jev or the summary LLM errors. If a curator still raises (`UnexpectedModelBehavior`, timeout, HTTP error), the dataset saves with placeholder tags/summary and `curation_status: "failed"`. The form and the row show that to the user.
+**@hey-api/openapi-ts, not orval.** The review asked for one well-known generator. Hey API's `@tanstack/react-query` plugin emits `listDatasetsOptions` / mutation helpers that match the Query wiring we already want. The `zod` plugin emits `zDatasetCreate` / `zValidationErrorResponse` from the same spec. The generated folder is committed; run `npm run gen:api` after a schema change.
 
-**@hey-api/openapi-ts, not orval.** The review asked for one well-known generator. Hey API's `@tanstack/react-query` plugin emits `listDatasetsOptions` / mutation helpers that match the Query wiring we already want. The `zod` plugin emits `zDatasetCreate` / `zValidationErrorResponse` from the same spec; the SDK `validator` option parses successful responses against those schemas. Pydantic `min_length=1` + `str_strip_whitespace` on `DatasetCreate` is what OpenAPI publishes as `minLength: 1`, so the generated Zod rules mirror FastAPI. Orval's MSW plugin would have generated handlers too; we wrote those by hand so they can stay aligned with FastAPI's 400 body, seeded rows, and keyword-like tags. The generated folder is committed; run `npm run gen:api` after a schema change.
+**MSW for Vitest.** Tests use `setupServer` against the same handlers. No `vi.mock` of an API module. Handlers return the same JSON shapes and 200/201/400/404 codes as FastAPI.
 
-**MSW for tests and optional browser demos.** Vitest uses `setupServer` against the same handlers as the opt-in worker. No `vi.mock` of an API module. Handlers return the same JSON shapes and 200/201/400/404 codes as FastAPI.
+**TanStack Form.** The add form uses the generated `zDatasetCreate` schema, refined for trimmed non-empty name, owner, and description. It is passed as Standard Schema `validators: { onChange, onSubmit }`. Server 400s go through `parseApiError` / `getFieldErrors` and `setFieldMeta`. The create mutation owns pending (`Curating…`) and non-field request errors.
 
-**TanStack Form.** The add form uses the generated `zDatasetCreate` schema, refined for trimmed non-empty name/description (`Name is required`). It is passed as Standard Schema `validators: { onChange, onSubmit }` — no adapter. Server 400s go through `parseApiError` / `getFieldErrors` (safeParse, never a raw `ZodError`) and `setFieldMeta`. The create mutation owns pending (`Curating…`) and non-field request errors.
-
-**UI.** Tailwind CSS v4 + shadcn/ui only — no leftover plain CSS classes. Neutral canvas with one blue accent. Inter, then the system sans stack. Desktop is a two-column internal-tool layout: sticky form card on the left, dataset list on the right; they stack on small screens. Tags are Badges (PII uses the warning token). Loader pending uses Skeleton rows; an empty catalogue is a quiet card. Request errors and the curation fallback are non-blocking Alerts. Focus rings stay visible; motion respects `prefers-reduced-motion`. Dark tokens follow `prefers-color-scheme` only.
+**UI.** Tailwind CSS v4 + shadcn/ui only. Neutral canvas with one blue accent. Inter, then the system sans stack. Desktop is a two-column internal-tool layout: sticky form card on the left, dataset list on the right; they stack on small screens. Tags are Badges (PII uses the warning token). Loader pending uses Skeleton rows. Request errors and failed or partial curation are non-blocking Alerts.
 
 ## What I would do next
 
 - Persist to Postgres and add `updated_at`
 - Edit a dataset and re-curate
 - Auth / team ownership
-- Evals on the curator (the mock is good enough to ship a review build; Jev tags need a small labelled set)
+- Evals on Jev thresholds against a labelled set
