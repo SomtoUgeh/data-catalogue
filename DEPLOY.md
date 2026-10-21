@@ -50,7 +50,9 @@ Set as **vars** (`wrangler.jsonc` `[vars]` or `.dev.vars`):
 - `CLASSIFIER_MODEL` (default `typesafe/jev`)
 - `PYDANTIC_AI_NO_BANNER` (`1` on the Worker)
 
-A live Worker summary needs `LLM_PROVIDER_API_KEY` and `CF_ACCOUNT_ID`. Jev on the Worker also needs the `AI` binding. The host FastAPI + Gateway path still wants the three-value Gateway set (`CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, `LLM_PROVIDER_API_KEY`).
+A live Worker summary needs `LLM_PROVIDER_API_KEY` and `CF_ACCOUNT_ID`. Jev on the Worker also needs the `AI` binding.
+
+Host Jev is different. `ClassifierCurator` has no `AI` binding on uvicorn, so it only runs when `llm_ready` is true: `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. Missing `CF_AI_GATEWAY_ID` skips Jev immediately. Llama can still succeed via `workers_ai_ready` (account + API key), which is why a host POST in this environment came back `partial` with a summary and empty tags. That is env config, not a regression from sharing `LlmCurator`. This environment has no gateway id, so a host `ok` cannot be proved here.
 
 Never commit `.dev.vars`.
 

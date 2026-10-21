@@ -24,7 +24,7 @@ The UI is at [http://localhost:3000](http://localhost:3000). The API is at [http
 
 A same-origin Cloudflare Workers prototype (FastAPI + D1 + the built SPA, local `pywrangler dev` only) is documented in [DEPLOY.md](DEPLOY.md).
 
-Copy `backend/.env.example` and set the three live values below for Jev + Llama. Without them, every create still returns 201. Tags stay empty, the summary is a placeholder, and `curation_status` is `failed`.
+Copy `backend/.env.example` and set the live values below. A create still returns 201 if AI is missing. Host Jev and host Llama are gated separately: without `CF_ACCOUNT_ID` + `LLM_PROVIDER_API_KEY`, both fail (`curation_status=failed`). With those two but no `CF_AI_GATEWAY_ID`, Llama can still run and Jev is skipped (`partial`, empty tags, summary kept). A host `ok` needs all three.
 
 Regenerate the typed client after a backend contract change:
 
@@ -55,14 +55,14 @@ Names only. Never commit values for tokens.
 | Name | Role |
 | --- | --- |
 | `CF_ACCOUNT_ID` | Cloudflare account id for the Workers AI run URL and the AI Gateway URL |
-| `CF_AI_GATEWAY_ID` | Gateway id for Llama via `/compat` |
+| `CF_AI_GATEWAY_ID` | **Required on host for Jev.** `ClassifierCurator` only runs its HTTP path when `llm_ready` is true (account + gateway id + API key). Also used by Llama for AI Gateway `/compat`. The Worker does not need this: Jev uses the `AI` binding. |
 | `CF_AI_GATEWAY_TOKEN` | Optional. Sent as `cf-aig-authorization` if the gateway itself requires auth |
 | `LLM_PROVIDER_API_KEY` | Cloudflare API token with Workers AI permission (`Authorization: Bearer`) |
 | `LLM_MODEL` | Defaults to `workers-ai/@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
 | `CLASSIFIER_MODEL` | Defaults to `typesafe/jev`. Swap to `@cf/cloudflare/clef-flash` for the CF-hosted Jev-compatible model |
 | `VITE_API_BASE_URL` | Optional. Leave unset so the browser calls same-origin `/datasets` and Vite proxies to FastAPI |
 
-A live run needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`.
+A host create with `curation_status=ok` needs `CF_ACCOUNT_ID`, `CF_AI_GATEWAY_ID`, and `LLM_PROVIDER_API_KEY`. Without the gateway id, host Jev does not run. Llama can still write a summary from account + API key (`workers_ai_ready`), so the row is `partial`. That is the host gate from the take-home, not a Worker-path bug. The Worker gets Jev from the `AI` binding and does not need `CF_AI_GATEWAY_ID`.
 
 ## Tests
 
