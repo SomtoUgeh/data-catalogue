@@ -1,3 +1,9 @@
+"""The curation interface DatasetService depends on.
+
+keyword.py implements it without AI (local runs and tests); workers_ai.py implements it with Clef and
+Llama on Cloudflare. Both read the tag vocabulary from tags.py.
+"""
+
 from typing import Annotated, Protocol
 
 from pydantic import BaseModel, Field, StringConstraints

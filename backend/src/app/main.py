@@ -1,3 +1,9 @@
+"""Builds the FastAPI app: routes, error handlers, and the DatasetService behind them.
+
+Request path: api/datasets.py (HTTP) -> services/datasets.py (logic) -> a DatasetStore (storage) and a
+Curator (AI). This module wires the local versions; src/worker.py wires the Cloudflare ones.
+"""
+
 from typing import Any
 
 from fastapi import FastAPI

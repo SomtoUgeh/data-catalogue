@@ -1,3 +1,9 @@
+"""Business logic for datasets, called by api/datasets.py.
+
+Creating a dataset asks the Curator for tags and a summary, then saves the result through the
+DatasetStore. Curation failures are absorbed here, so a save never fails because of the AI.
+"""
+
 import logging
 
 from app.curation.base import Curator, IncompleteCurationError

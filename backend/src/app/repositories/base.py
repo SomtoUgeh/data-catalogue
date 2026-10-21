@@ -1,3 +1,8 @@
+"""The storage interface DatasetService depends on.
+
+memory.py implements it for local runs and tests, d1.py for Cloudflare D1.
+"""
+
 from typing import Protocol
 
 from app.schemas import Dataset, DatasetFields

@@ -1,3 +1,5 @@
+// The app's router and query client. The router passes the query client to route loaders, so a route
+// can fetch its data before it renders (see routes/index.tsx).
 import { QueryClient } from '@tanstack/react-query'
 import { createRouter } from '@tanstack/react-router'
 

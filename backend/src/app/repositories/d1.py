@@ -1,3 +1,5 @@
+"""Cloudflare D1 DatasetStore, used by the Worker (see base.py for the interface)."""
+
 import json
 from typing import Any
 

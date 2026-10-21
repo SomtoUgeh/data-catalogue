@@ -1,3 +1,9 @@
+"""Pydantic models shared by every layer: the request body, the stored dataset, and the error bodies.
+
+FastAPI validates requests against them and builds the OpenAPI document from them, which the frontend
+turns into its TypeScript types and Zod schemas (npm run gen:api).
+"""
+
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, StringConstraints
