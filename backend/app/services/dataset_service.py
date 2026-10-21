@@ -5,7 +5,7 @@ import time
 from app.curation.base import Curator
 from app.curation.outcome import CurationFailed
 from app.curation.tags import MAX_TAGS, normalize_tags
-from app.repositories.dataset_repository import DatasetRepository
+from app.repositories.store import DatasetStore
 from app.schemas import Dataset, DatasetCreate
 
 logger = logging.getLogger("uvicorn.error")
@@ -35,7 +35,7 @@ class DatasetNotFoundError(Exception):
 
 
 class DatasetService:
-    def __init__(self, repository: DatasetRepository, curator: Curator) -> None:
+    def __init__(self, repository: DatasetStore, curator: Curator) -> None:
         self.repository = repository
         self.curator = curator
 

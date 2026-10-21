@@ -45,6 +45,9 @@ NOT_FOUND_ERROR: dict[int | str, dict[str, Any]] = {
 
 
 def _service(request: Request):
+    bound = getattr(request.state, "service", None)
+    if bound is not None:
+        return bound
     return request.app.state.service
 
 

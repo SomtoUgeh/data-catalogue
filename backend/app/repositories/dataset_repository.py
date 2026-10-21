@@ -43,7 +43,7 @@ SEED_DATASETS = [
 
 
 class DatasetRepository:
-    """In-memory store. Fine for the take-home; swap this class for a database later."""
+    """In-memory store. The take-home default; the Worker path swaps in D1DatasetRepository."""
 
     def __init__(self) -> None:
         self._lock = Lock()

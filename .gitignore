@@ -14,3 +14,6 @@ coverage/
 *.egg-info/
 .DS_Store
 frontend/test-results/
+.dev.vars
+.wrangler/
+backend/.wrangler/

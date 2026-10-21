@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from app.curation.base import Curator
 from app.curation.factory import get_curator
 from app.repositories.dataset_repository import DatasetRepository
+from app.repositories.store import DatasetStore
 from app.routers.datasets import router as datasets_router
 from app.schemas import ErrorResponse, FieldError, ValidationErrorResponse
 from app.services.dataset_service import DatasetNotFoundError, DatasetService
@@ -40,7 +41,7 @@ def _validation_fields(exc: RequestValidationError) -> list[FieldError]:
 
 
 def create_app(
-    repository: DatasetRepository | None = None,
+    repository: DatasetStore | None = None,
     curator: Curator | None = None,
 ) -> FastAPI:
     repo = repository or DatasetRepository()
