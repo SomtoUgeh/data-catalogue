@@ -6,7 +6,7 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
 from app.config import DEFAULT_LLM_MODEL, Settings, get_settings
-from app.curation.factory import get_curator
+from app.curation.factory import FailingCurator, get_curator
 from app.curation.keyword import KeywordCurator
 from app.curation.llm import LlmCurator
 from app.curation.tags import normalize_tags
@@ -93,6 +93,12 @@ def test_get_curator_uses_llm_when_gateway_configured(monkeypatch: pytest.Monkey
     curator = get_curator()
     assert isinstance(curator, LlmCurator)
     assert curator.settings.llm_model == DEFAULT_LLM_MODEL
+
+
+def test_get_curator_fail_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CURATOR", "fail")
+    get_settings.cache_clear()
+    assert isinstance(get_curator(), FailingCurator)
 
 
 def test_get_curator_mock_override_wins(monkeypatch: pytest.MonkeyPatch) -> None:
