@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import * as z from 'zod'
 
-import { zDatasetCreate } from '../api/generated/zod.gen'
+import { zDatasetCreate, zListDatasetsQuery } from '../api/generated/zod.gen'
 import { createStoredDataset, deleteStoredDataset, listStoredDatasets } from './store'
 
 // Like the API, the mock trims the text fields before it validates them.
@@ -12,14 +12,21 @@ const createBodySchema = zDatasetCreate.extend({
 })
 
 export const datasetsHandlers = [
-  http.get('/datasets', () => HttpResponse.json(listStoredDatasets(), { status: 200 })),
+  http.get('/datasets', ({ request }) => {
+    const params = new URL(request.url).searchParams
+    const query = zListDatasetsQuery.parse({
+      limit: params.has('limit') ? Number(params.get('limit')) : undefined,
+      before: params.get('before'),
+    })
+    return HttpResponse.json(listStoredDatasets(query.limit, query.before ?? null), { status: 200 })
+  }),
 
   http.post('/datasets', async ({ request }) => {
     const parsed = createBodySchema.safeParse(await request.json())
     if (!parsed.success) {
       const fields = parsed.error.issues.map((issue) => {
         const field = String(issue.path[0])
-        return { field, message: `${field} is required` }
+        return { field, message: `${field.charAt(0).toUpperCase()}${field.slice(1)} is required` }
       })
       return HttpResponse.json({ error: 'Validation failed', fields }, { status: 400 })
     }

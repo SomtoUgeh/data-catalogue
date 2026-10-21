@@ -8,8 +8,9 @@ class InMemoryDatasetStore:
         self._datasets = {dataset.id: dataset for dataset in seed}
         self._last_id = max((int(dataset.id) for dataset in seed), default=0)
 
-    async def list_all(self) -> list[Dataset]:
-        return list(self._datasets.values())
+    async def list_page(self, limit: int, before: int | None) -> list[Dataset]:
+        newest_first = sorted(self._datasets.values(), key=lambda dataset: int(dataset.id), reverse=True)
+        return [dataset for dataset in newest_first if before is None or int(dataset.id) < before][:limit]
 
     async def add(self, fields: DatasetFields) -> Dataset:
         self._last_id += 1

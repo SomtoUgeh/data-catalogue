@@ -13,8 +13,13 @@ export function resetDatasetStore() {
   nextId = 4
 }
 
-export function listStoredDatasets(): Dataset[] {
-  return items.map((item) => ({ ...item, tags: [...item.tags] }))
+/** Newest first, like the API: up to `limit` datasets with ids below `before`. */
+export function listStoredDatasets(limit: number, before: string | null): Dataset[] {
+  return items
+    .filter((item) => before === null || Number(item.id) < Number(before))
+    .sort((a, b) => Number(b.id) - Number(a.id))
+    .slice(0, limit)
+    .map((item) => ({ ...item, tags: [...item.tags] }))
 }
 
 export function createStoredDataset(payload: DatasetCreate): Dataset {

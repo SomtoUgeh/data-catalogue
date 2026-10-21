@@ -16,8 +16,14 @@ class D1DatasetStore:
     def __init__(self, db: Any) -> None:
         self._db = db
 
-    async def list_all(self) -> list[Dataset]:
-        result = await self._db.prepare(f"SELECT {COLUMNS} FROM datasets ORDER BY id").all()
+    async def list_page(self, limit: int, before: int | None) -> list[Dataset]:
+        # Keyset pagination on the primary key: each page costs one index range scan, however deep it is.
+        if before is None:
+            statement = self._db.prepare(f"SELECT {COLUMNS} FROM datasets ORDER BY id DESC LIMIT ?").bind(limit)
+        else:
+            query = f"SELECT {COLUMNS} FROM datasets WHERE id < ? ORDER BY id DESC LIMIT ?"
+            statement = self._db.prepare(query).bind(before, limit)
+        result = await statement.all()
         return [_to_dataset(row) for row in result["results"]]
 
     async def add(self, fields: DatasetFields) -> Dataset:

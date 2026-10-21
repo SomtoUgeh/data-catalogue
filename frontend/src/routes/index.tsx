@@ -6,7 +6,7 @@ import { CatalogueSkeleton } from '@/features/datasets/components/CatalogueSkele
 import { datasetsQueryOptions } from '@/features/datasets/api/queryOptions'
 
 export const Route = createFileRoute('/')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(datasetsQueryOptions()),
+  loader: ({ context }) => context.queryClient.ensureInfiniteQueryData(datasetsQueryOptions()),
   pendingComponent: CatalogueSkeleton,
   errorComponent: CatalogueError,
   component: CataloguePage,

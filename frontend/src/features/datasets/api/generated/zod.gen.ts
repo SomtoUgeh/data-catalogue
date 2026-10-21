@@ -46,24 +46,6 @@ export const zFieldError = z.object({
 });
 
 /**
- * ValidationError
- */
-export const zValidationError = z.object({
-    loc: z.array(z.union([z.string(), z.int()])),
-    msg: z.string(),
-    type: z.string(),
-    input: z.unknown().optional(),
-    ctx: z.record(z.string(), z.unknown()).optional()
-});
-
-/**
- * HTTPValidationError
- */
-export const zHttpValidationError = z.object({
-    detail: z.array(zValidationError).optional()
-});
-
-/**
  * ValidationErrorResponse
  *
  * Body of a 400. `fields` names each invalid request field so the UI can show errors inline.
@@ -71,6 +53,11 @@ export const zHttpValidationError = z.object({
 export const zValidationErrorResponse = z.object({
     error: z.string(),
     fields: z.array(zFieldError)
+});
+
+export const zListDatasetsQuery = z.object({
+    limit: z.int().gte(1).lte(100).optional().default(50),
+    before: z.string().regex(/^\d+$/).nullish()
 });
 
 /**

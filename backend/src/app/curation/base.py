@@ -14,5 +14,13 @@ class CurationResult(BaseModel):
     summary: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 
 
+class IncompleteCurationError(Exception):
+    """Raised when a curator chose tags but could not write the summary. The tags are still worth saving."""
+
+    def __init__(self, tags: list[str]) -> None:
+        super().__init__(f"Curation stopped after choosing tags {tags}")
+        self.tags = tags
+
+
 class Curator(Protocol):
     async def curate(self, dataset: DatasetCreate) -> CurationResult: ...
